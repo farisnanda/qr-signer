@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  name             String?
+  email            String   @unique
+  password         String?
+  role             String   @default("BIDANG")
+  bidang           String?
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now())
+}
+
+model SignBatch {
+  id             String    @id @default(cuid())
+  batchCode      String    @unique
+  jenisSk        String
+  total          Int
+  successCount   Int
+  errorCount     Int
+  zipFileName    String?
+  reportFileName String?
+  signedBy       String
+  createdAt      DateTime  @default(now())
+  logs           SignLog[]
+}
+
+model SignLog {
+  id           String    @id @default(cuid())
+  batchId      String
+  batch        SignBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  jenisSk      String
+  namaFile     String?
+  nip          String?
+  nama         String?
+  status       String
+  errorMessage String?
+  signedBy     String
+  signedAt     DateTime  @default(now())
+}
+
+model Document {
+  id           String    @id @default(cuid())
+  title        String
+  documentNo   String
+  filePath     String
+  verifyToken  String    @unique
+  qrX          Float?
+  qrY          Float?
+  qrWidth      Float?
+  qrHeight     Float?
+  documentDate DateTime?
+  createdAt    DateTime  @default(now())
+}
