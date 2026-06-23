@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  signer:
+    build: .
+    container_name: qr-signer
+    ports:
+      - "3002:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:signer123@signer-db:5432/qr_signer
+      - NEXTAUTH_SECRET=c456f6a85b7765b23a44a49a070b85b613bea62cf501f3b58eee750c979cdfc0
+      - NEXTAUTH_URL=http://localhost:3002
+      - GOTENBERG_URL=http://gotenberg-signer:3000
+    depends_on:
+      - signer-db
+      - gotenberg-signer
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  signer-db:
+    image: postgres:16-alpine
+    container_name: signer-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=bkdj@t1msign@
+      - POSTGRES_DB=qr_signer
+    volumes:
+      - signer-db-data:/var/lib/postgresql/data
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  gotenberg-signer:
+    image: gotenberg/gotenberg:8
+    container_name: gotenberg-signer
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+networks:
+  network-sharing:
+    external: true
+
+volumes:
+  signer-db-data:
