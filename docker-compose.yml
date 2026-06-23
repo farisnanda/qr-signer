@@ -7,7 +7,7 @@ services:
     ports:
       - "3002:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:signer123@signer-db:5432/qr_signer
+      - DATABASE_URL=postgresql://postgres:bkdj@t1msign@signer-db:5432/qr_signer
       - NEXTAUTH_SECRET=c456f6a85b7765b23a44a49a070b85b613bea62cf501f3b58eee750c979cdfc0
       - NEXTAUTH_URL=http://localhost:3002
       - GOTENBERG_URL=http://gotenberg-signer:3000
