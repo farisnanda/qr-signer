@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm install --network-timeout 300000
 
 COPY . .
 RUN npx prisma generate
