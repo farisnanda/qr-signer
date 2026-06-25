@@ -36,7 +36,7 @@ function AutoLogout() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider refetchInterval={0} refetchOnWindowFocus={true}>
+    <SessionProvider basePath="/qr-signer/api/auth" refetchInterval={0} refetchOnWindowFocus={true}>
       <AutoLogout />
       {children}
     </SessionProvider>
