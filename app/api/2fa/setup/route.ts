@@ -1,30 +1,26 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import * as OTPAuth from "otpauth"
 import QRCode from "qrcode"
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function POST(req: Request) {
+  const { email } = await req.json()
+  if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 })
 
-  const userId = (session.user as any).id
+  const user = await prisma.user.findUnique({ where: { email } })
+  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
-  // Generate secret baru
   const secret = new OTPAuth.Secret({ size: 20 })
   const secretBase32 = secret.base32
 
-  // Simpan secret sementara ke DB (belum enabled)
   await prisma.user.update({
-    where: { id: userId },
+    where: { id: user.id },
     data: { twoFactorSecret: secretBase32 },
   })
 
-  // Buat TOTP
   const totp = new OTPAuth.TOTP({
     issuer: "SIGNER BKD Jawa Timur",
-    label: session.user.email ?? "user",
+    label: email,
     algorithm: "SHA1",
     digits: 6,
     period: 30,
@@ -34,9 +30,5 @@ export async function GET() {
   const otpAuthUrl = totp.toString()
   const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl)
 
-  return NextResponse.json({
-    secret: secretBase32,
-    qrCode: qrCodeDataUrl,
-    otpAuthUrl,
-  })
+  return NextResponse.json({ secret: secretBase32, qrCode: qrCodeDataUrl })
 }

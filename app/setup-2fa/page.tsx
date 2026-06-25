@@ -14,7 +14,7 @@ export default function Setup2FAPage() {
   useEffect(() => {
     const pendingEmail = sessionStorage.getItem("2fa_pending_email")
     if (!pendingEmail) {
-      window.location.href = "/login"
+      window.location.href = "/qr-signer/login"
       return
     }
     setEmailState(pendingEmail)
@@ -56,7 +56,7 @@ export default function Setup2FAPage() {
     if (!res.ok) { setError(data.error || "Kode tidak valid"); return }
 
     sessionStorage.removeItem("2fa_pending_email")
-    window.location.href = "/admin"
+    window.location.href = "/qr-signer/admin"
   }
 
   return (
