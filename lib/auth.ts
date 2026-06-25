@@ -31,13 +31,25 @@ export const authOptions = {
 
         if (!passwordMatch) return null
 
-        // 2FA sudah aktif → minta verifikasi kode
+        // 2FA sudah aktif → lempar error, tangani di login page
         if (user.twoFactorEnabled) {
           throw new Error("2FA_REQUIRED")
         }
 
-        // 2FA belum di-setup → wajib setup dulu
-        throw new Error("2FA_SETUP_REQUIRED")
+        // 2FA belum di-setup → lempar error, tangani di login page
+        if (!user.twoFactorEnabled) {
+          throw new Error("2FA_SETUP_REQUIRED")
+        }
+
+        // Seharusnya tidak sampai sini, tapi return untuk safety
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name ?? undefined,
+          role: user.role,
+          bidang: user.bidang ?? undefined,
+          twoFactorEnabled: user.twoFactorEnabled,
+        }
       },
     }),
   ],
@@ -49,6 +61,7 @@ export const authOptions = {
 
   pages: {
     signIn: "/login",
+    error: "/login",  // ← FIX: redirect error ke /qr-signer/login?error=...
   },
 
   secret: process.env.NEXTAUTH_SECRET,
@@ -62,7 +75,6 @@ export const authOptions = {
         token.twoFactorVerified = true
       }
 
-      // Login via Google — skip 2FA
       if (account?.provider === "google") {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email! },
@@ -80,7 +92,6 @@ export const authOptions = {
         }
       }
 
-      // Refresh token
       if (!token.role && token.sub) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.sub },
