@@ -1,23 +1,19 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import path from "path"
 import fs from "fs"
 
 export async function GET(
   req: Request,
-  { params }: { params: { filename: string } }
+  { params }: { params: Promise<{ filename: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { filename } = await params
+  const safeName = path.basename(filename)
+
+  if (!safeName.endsWith(".zip") && !safeName.endsWith(".xlsx")) {
+    return NextResponse.json({ error: "Invalid file type" }, { status: 400 })
   }
 
-  const filename = params.filename
-  
-  // Sanitasi filename — cegah path traversal
-  const safeName = path.basename(filename)
-  const filePath = path.join("/tmp", safeName)
+  const filePath = path.join(process.cwd(), "private/uploads/bulk_sk", safeName)
 
   if (!fs.existsSync(filePath)) {
     return NextResponse.json({ error: "File not found" }, { status: 404 })
@@ -25,7 +21,7 @@ export async function GET(
 
   const fileBuffer = fs.readFileSync(filePath)
   const isZip = safeName.endsWith(".zip")
-  const contentType = isZip ? "application/zip" : "text/csv"
+  const contentType = isZip ? "application/zip" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
   return new NextResponse(fileBuffer, {
     headers: {

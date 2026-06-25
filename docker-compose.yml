@@ -34,7 +34,9 @@ services:
     restart: unless-stopped
 
   gotenberg-signer:
-    image: gotenberg/gotenberg:8
+    build:
+      context: .
+      dockerfile: Dockerfile.gotenberg
     container_name: gotenberg-signer
     networks:
       - network-sharing

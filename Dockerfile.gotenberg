@@ -1,0 +1,14 @@
+FROM gotenberg/gotenberg:8
+
+USER root
+
+RUN mkdir -p /usr/share/fonts/truetype/bookman
+
+COPY fonts/BOOKOS.TTF /usr/share/fonts/truetype/bookman/
+COPY fonts/BOOKOSB.TTF /usr/share/fonts/truetype/bookman/
+COPY fonts/BOOKOSI.TTF /usr/share/fonts/truetype/bookman/
+COPY fonts/BOOKOSBI.TTF /usr/share/fonts/truetype/bookman/
+
+RUN fc-cache -f -v
+
+USER gotenberg
