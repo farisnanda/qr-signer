@@ -23,7 +23,7 @@ export default function Setup2FAPage() {
 
   async function generateQR(email: string) {
     try {
-      const res = await fetch("/api/2fa/setup-init", {
+      const res = await fetch("/qr-signer/api/2fa/setup-init", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -44,7 +44,7 @@ export default function Setup2FAPage() {
     setLoading(true)
     setError("")
 
-    const res = await fetch("/api/2fa/setup-verify", {
+    const res = await fetch("/qr-signer/api/2fa/setup-verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
