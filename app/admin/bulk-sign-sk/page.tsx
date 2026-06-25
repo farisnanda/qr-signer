@@ -47,7 +47,7 @@ export default function BulkSignSkPage() {
       return
     }
     // Cek apakah user punya 2FA aktif
-    const sessionRes = await fetch("/api/auth/session")
+    const sessionRes = await fetch("/qr-signer/api/auth/session")
     const sessionData = await sessionRes.json()
     const hasTwoFactor = sessionData?.user?.twoFactorEnabled
 
@@ -66,7 +66,7 @@ export default function BulkSignSkPage() {
     setTwoFactorLoading(true)
     setTwoFactorError("")
 
-    const res = await fetch("/api/2fa/validate-action", {
+    const res = await fetch("/qr-signer/api/2fa/validate-action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: twoFactorCode }),
@@ -115,7 +115,7 @@ export default function BulkSignSkPage() {
       formData.append("pdfScale", String(pdfScale))
       formData.append("canvasHeight", String(canvasHeight))
 
-      const res = await fetch("/api/bulk-sign-sk", {
+      const res = await fetch("/qr-signer/api/bulk-sign-sk", {
         method: "POST",
         body: formData,
       })

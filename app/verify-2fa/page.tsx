@@ -11,7 +11,7 @@ function VerifyForm() {
   useEffect(() => {
     const pendingEmail = sessionStorage.getItem("2fa_pending_email")
     if (!pendingEmail) {
-      window.location.href = "/login"
+      window.location.href = "/qr-signer/login"
       return
     }
     setEmail(pendingEmail)
@@ -24,7 +24,7 @@ function VerifyForm() {
     setLoading(true)
     setError("")
 
-    const res = await fetch("/api/2fa/validate", {
+    const res = await fetch("/qr-signer/api/2fa/validate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
@@ -36,7 +36,7 @@ function VerifyForm() {
     if (!res.ok) { setError(result.error || "Kode tidak valid"); return }
 
     sessionStorage.removeItem("2fa_pending_email")
-    window.location.href = "/admin"
+    window.location.href = "/qr-signer/admin"
   }
 
   return (

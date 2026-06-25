@@ -28,7 +28,7 @@ export default function EditUserPage() {
   const [bidang, setBidang] = useState("")
 
   useEffect(() => {
-    fetch("/api/users/" + userId)
+    fetch("/qr-signer/api/users/" + userId)
       .then((r) => r.json())
       .then((data) => {
         setName(data.name || "")
@@ -45,7 +45,7 @@ export default function EditUserPage() {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/users/" + userId, {
+      const res = await fetch("/qr-signer/api/users/" + userId, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

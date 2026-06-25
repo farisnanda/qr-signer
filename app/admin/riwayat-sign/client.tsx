@@ -41,7 +41,7 @@ function BatchTable({ batch }: { batch: Batch }) {
   const fetchLogs = useCallback(async (p: number) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/sign-log/${batch.id}?page=${p}`)
+      const res = await fetch(`/qr-signer/api/sign-log/${batch.id}?page=${p}`)
       const data = await res.json()
       setLogs(data.logs)
       setTotalLogs(data.totalLogs)

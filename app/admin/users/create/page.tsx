@@ -16,7 +16,7 @@ export default function CreateUserPage() {
 
     try {
       const formData = new FormData(e.currentTarget)
-      const res = await fetch("/api/users", {
+      const res = await fetch("/qr-signer/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

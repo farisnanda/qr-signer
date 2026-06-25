@@ -11,7 +11,7 @@ export function DeleteUserButton({ userId }: { userId: string }) {
     if (!confirm("Yakin hapus user ini?")) return
     setLoading(true)
     try {
-      await fetch("/api/users/" + userId, { method: "DELETE" })
+      await fetch("/qr-signer/api/users/" + userId, { method: "DELETE" })
       router.refresh()
     } finally {
       setLoading(false)

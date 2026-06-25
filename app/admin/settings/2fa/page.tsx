@@ -19,7 +19,7 @@ export default function TwoFactorPage() {
   async function handleSetup() {
     setLoading(true)
     setError("")
-    const res = await fetch("/api/2fa/setup")
+    const res = await fetch("/qr-signer/api/2fa/setup")
     const data = await res.json()
     setLoading(false)
     if (!res.ok) { setError(data.error); return }
@@ -32,7 +32,7 @@ export default function TwoFactorPage() {
   e.preventDefault()
   setLoading(true)
   setError("")
-  const res = await fetch("/api/2fa/verify-setup", {
+  const res = await fetch("/qr-signer/api/2fa/verify-setup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),
@@ -50,7 +50,7 @@ async function handleDisable(e: React.FormEvent) {
   e.preventDefault()
   setLoading(true)
   setError("")
-  const res = await fetch("/api/2fa/disable", {
+  const res = await fetch("/qr-signer/api/2fa/disable", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),

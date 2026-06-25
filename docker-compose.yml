@@ -7,10 +7,12 @@ services:
     ports:
       - "3002:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:bkdj@t1msign@signer-db:5432/qr_signer
+      - DATABASE_URL=postgresql://postgres:signer2026@signer-db:5432/qr_signer
       - NEXTAUTH_SECRET=c456f6a85b7765b23a44a49a070b85b613bea62cf501f3b58eee750c979cdfc0
-      - NEXTAUTH_URL=http://localhost:3002
+      - NEXTAUTH_URL=https://apps.bkd.jatimprov.go.id/qr-signer
       - GOTENBERG_URL=http://gotenberg-signer:3000
+    volumes:
+      - signer-uploads:/app/private/uploads
     depends_on:
       - signer-db
       - gotenberg-signer
@@ -23,7 +25,7 @@ services:
     container_name: signer-db
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=bkdj@t1msign@
+      - POSTGRES_PASSWORD=signer2026
       - POSTGRES_DB=qr_signer
     volumes:
       - signer-db-data:/var/lib/postgresql/data
@@ -44,3 +46,4 @@ networks:
 
 volumes:
   signer-db-data:
+  signer-uploads:

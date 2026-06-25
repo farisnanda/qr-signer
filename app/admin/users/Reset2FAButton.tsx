@@ -19,7 +19,7 @@ export function Reset2FAButton({ userId, twoFactorEnabled }: { userId: string; t
     if (!confirm("Reset 2FA user ini? User harus setup ulang 2FA saat login berikutnya.")) return
     setLoading(true)
     try {
-      await fetch(`/api/users/${userId}/reset-2fa`, { method: "POST" })
+      await fetch(`/qr-signer/api/users/${userId}/reset-2fa`, { method: "POST" })
       router.refresh()
     } catch {}
     setLoading(false)

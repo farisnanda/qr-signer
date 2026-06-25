@@ -389,8 +389,8 @@ export async function POST(req: Request) {
           total,
           successCount,
           errorCount,
-          downloadUrl: `/api/bulk-sk-download/${zipFileName}`,
-          reportUrl: `/api/bulk-sk-download/${reportFileName}`,
+          downloadUrl: `/qr-signer/api/bulk-sk-download/${zipFileName}`,
+          reportUrl: `/qr-signer/api/bulk-sk-download/${reportFileName}`,
         })
 
       } catch (err: any) {
