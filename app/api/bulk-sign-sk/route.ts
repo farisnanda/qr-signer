@@ -48,8 +48,8 @@ const NOMOR_SK_MAP: Record<string, string> = {
 // Prefix penamaan file output SK (terlepas dari golongan template): SK_PNS_<DDMMYYYY>.
 const SK_PREFIX = "SK_PNS"
 
-// Template SK CPNS tersimpan di server (private/*.docx) dan dipilih berdasarkan golongan.
-// File template ini read-only dan tidak boleh diubah oleh proses generate.
+// Template SK CPNS tersimpan di server (templates/*.docx, ikut di-commit & ter-build
+// ke image) dan dipilih berdasarkan golongan. Read-only — tidak diubah proses generate.
 const TEMPLATE_MAP: Record<string, { file: string; label: string }> = {
   IIa: { file: "IIa.docx", label: "SK_CPNS_IIa" },
   IIc: { file: "IIc.docx", label: "SK_CPNS_IIc" },
@@ -237,7 +237,7 @@ export async function POST(req: Request) {
   const jenisSk = template.label
 
   // Tanggal SK diinput manual (mendukung SK mundur). Fallback ke hari ini jika kosong/invalid.
-  const templatePath = path.join(process.cwd(), "private", template.file)
+  const templatePath = path.join(process.cwd(), "templates", template.file)
   const nowDate = new Date()
   const dateStr = /^\d{8}$/.test(dateStrInput)
     ? dateStrInput
