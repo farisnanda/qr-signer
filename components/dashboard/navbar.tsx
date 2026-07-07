@@ -41,7 +41,7 @@ export function Navbar() {
 
   async function fetchNotif() {
     try {
-      const res = await fetch("/api/sign-log")
+      const res = await fetch("/qr-signer/api/sign-log")
       const data = await res.json()
       if (data.batches) {
         setBatches(data.batches)

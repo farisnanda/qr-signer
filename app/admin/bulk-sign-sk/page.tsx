@@ -5,16 +5,23 @@ import dynamic from "next/dynamic"
 
 const PdfViewer = dynamic(() => import("@/components/documents/pdf-viewer"), { ssr: false })
 
-const JENIS_SK_OPTIONS = [
-  { value: "SK_PNS", label: "SK PNS — Pengangkatan CPNS menjadi PNS" },
-  { value: "SK_JABATAN", label: "SK Jabatan" },
-  { value: "SUMPAH_PNS", label: "Sumpah PNS" },
+const TEMPLATE_OPTIONS = [
+  { value: "IIa", label: "SK CPNS — Golongan II/a" },
+  { value: "IIc", label: "SK CPNS — Golongan II/c" },
+  { value: "IIIab", label: "SK CPNS — Golongan III/a & III/b" },
+  { value: "Profesi", label: "SK CPNS — Pendidikan Profesi" },
 ]
+
+// Tanggal hari ini dalam format YYYY-MM-DD (untuk nilai awal input date, mengikuti zona waktu lokal).
+function todayInput() {
+  const d = new Date()
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
 
 export default function BulkSignSkPage() {
   const [excelFile, setExcelFile] = useState<File | null>(null)
-  const [templateFile, setTemplateFile] = useState<File | null>(null)
-  const [jenisSk, setJenisSk] = useState("SK_PNS")
+  const [templateKey, setTemplateKey] = useState("IIa")
+  const [skDate, setSkDate] = useState(todayInput())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [results, setResults] = useState<any[]>([])
@@ -25,6 +32,13 @@ export default function BulkSignSkPage() {
   const [processedRows, setProcessedRows] = useState(0)
   const [useQr, setUseQr] = useState(true)
   const [singlePage, setSinglePage] = useState(true)
+  const [phaseLabel, setPhaseLabel] = useState("")
+
+  // TTE (BSrE) — kredensial transien, tidak disimpan
+  const [useTte, setUseTte] = useState(true)
+  const [showTteModal, setShowTteModal] = useState(false)
+  const [tteError, setTteError] = useState("")
+  const [tte, setTte] = useState({ username: "", password: "", nik: "", passphrase: "" })
 
   // 2FA modal
   const [showTwoFactorModal, setShowTwoFactorModal] = useState(false)
@@ -42,8 +56,12 @@ export default function BulkSignSkPage() {
   const [qrConfirmed, setQrConfirmed] = useState(false)
 
   async function handleClickMulai() {
-    if (!excelFile || !templateFile) {
-      setError("File Excel dan template DOCX wajib diupload")
+    if (!excelFile) {
+      setError("File Excel wajib diupload")
+      return
+    }
+    if (!skDate) {
+      setError("Tanggal SK wajib diisi")
       return
     }
     // Cek apakah user punya 2FA aktif
@@ -53,6 +71,16 @@ export default function BulkSignSkPage() {
 
     if (hasTwoFactor) {
       setShowTwoFactorModal(true)
+    } else {
+      proceedAfterAuth()
+    }
+  }
+
+  // Setelah otorisasi aplikasi (2FA), minta kredensial TTE bila diaktifkan.
+  function proceedAfterAuth() {
+    if (useTte) {
+      setTteError("")
+      setShowTteModal(true)
     } else {
       handleSubmit()
     }
@@ -83,12 +111,22 @@ export default function BulkSignSkPage() {
     setShowTwoFactorModal(false)
     setTwoFactorCode("")
     setTwoFactorError("")
+    proceedAfterAuth()
+  }
+
+  function handleTteConfirm() {
+    if (!tte.username || !tte.password || !tte.nik || !tte.passphrase) {
+      setTteError("Username, password, NIK, dan passphrase wajib diisi")
+      return
+    }
+    setShowTteModal(false)
+    setTteError("")
     handleSubmit()
   }
 
   async function handleSubmit() {
-    if (!excelFile || !templateFile) {
-      setError("File Excel dan template DOCX wajib diupload")
+    if (!excelFile) {
+      setError("File Excel wajib diupload")
       return
     }
     setLoading(true)
@@ -98,13 +136,14 @@ export default function BulkSignSkPage() {
     setProgressPercent(0)
     setProcessedRows(0)
     setTotalRows(0)
+    setPhaseLabel("")
     setProgress("Menghubungkan ke server...")
 
     try {
       const formData = new FormData()
       formData.append("excel", excelFile)
-      formData.append("template", templateFile)
-      formData.append("jenisSk", jenisSk)
+      formData.append("templateKey", templateKey)
+      formData.append("dateStr", skDate.split("-").reverse().join(""))
       formData.append("useQr", String(useQr))
       formData.append("singlePage", String(singlePage))
       formData.append("qrX", String(qrPosition.x))
@@ -114,11 +153,21 @@ export default function BulkSignSkPage() {
       formData.append("pageNumber", String(currentPage))
       formData.append("pdfScale", String(pdfScale))
       formData.append("canvasHeight", String(canvasHeight))
+      formData.append("useTte", String(useTte))
+      if (useTte) {
+        formData.append("bsreUsername", tte.username)
+        formData.append("bsrePassword", tte.password)
+        formData.append("nik", tte.nik)
+        formData.append("passphrase", tte.passphrase)
+      }
 
       const res = await fetch("/qr-signer/api/bulk-sign-sk", {
         method: "POST",
         body: formData,
       })
+
+      // Hapus kredensial TTE dari memori segera setelah terkirim.
+      setTte({ username: "", password: "", nik: "", passphrase: "" })
 
       if (!res.ok || !res.body) {
         const err = await res.json()
@@ -145,19 +194,38 @@ export default function BulkSignSkPage() {
 
             if (data.type === "start") {
               setTotalRows(data.total)
-              setProgress("Generating PDF...")
+              setPhaseLabel(data.tte ? "Membuat dokumen" : "")
+              setProgress(data.tte ? "Membuat dokumen..." : "Generating PDF...")
+            }
+
+            if (data.type === "status") {
+              setProgress(data.message || "")
             }
 
             if (data.type === "progress") {
+              if (data.phase === "sign") setPhaseLabel("Menandatangani (BSrE)")
+              else if (data.phase === "generate") setPhaseLabel(prev => prev || "Membuat dokumen")
               setProcessedRows(data.processed)
+              setTotalRows(data.total)
               setProgressPercent((data.processed / data.total) * 100)
-              setResults(prev => [...prev, {
-                nip: data.nip,
-                nama: data.nama,
-                status: data.status,
-                fileName: data.fileName,
-                error: data.error,
-              }])
+              // Update baris berdasarkan NIP (fase generate lalu fase sign menimpa status yang sama).
+              setResults(prev => {
+                const item = {
+                  nip: data.nip,
+                  nama: data.nama,
+                  status: data.status,
+                  fileName: data.fileName,
+                  error: data.error,
+                  phase: data.phase,
+                }
+                const idx = prev.findIndex(r => r.nip === data.nip)
+                if (idx >= 0) {
+                  const copy = [...prev]
+                  copy[idx] = item
+                  return copy
+                }
+                return [...prev, item]
+              })
             }
 
             if (data.type === "done") {
@@ -205,18 +273,33 @@ export default function BulkSignSkPage() {
               <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
             )}
 
-            {/* Jenis SK */}
+            {/* Template SK (Golongan) */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Jenis SK</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Template SK (Golongan)</label>
               <select
-                value={jenisSk}
-                onChange={(e) => setJenisSk(e.target.value)}
+                value={templateKey}
+                onChange={(e) => setTemplateKey(e.target.value)}
                 className="w-full rounded-lg border px-4 py-2 text-sm"
               >
-                {JENIS_SK_OPTIONS.map((o) => (
+                {TEMPLATE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-slate-400">Template diambil otomatis dari server sesuai golongan.</p>
+            </div>
+
+            {/* Tanggal SK */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Tanggal SK <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={skDate}
+                onChange={(e) => setSkDate(e.target.value)}
+                className="w-full rounded-lg border px-4 py-2 text-sm"
+              />
+              <p className="mt-1 text-xs text-slate-400">Dipakai untuk penamaan file. Bisa diatur mundur untuk SK bertanggal lampau.</p>
             </div>
 
             {/* Upload Excel */}
@@ -236,28 +319,6 @@ export default function BulkSignSkPage() {
                     <p className="text-sm text-slate-500">📊 Klik untuk pilih file Excel</p>
                     <p className="text-xs text-slate-400">Format: .xlsx</p>
                     <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => setExcelFile(e.target.files?.[0] || null)} />
-                  </label>
-                )}
-              </div>
-            </div>
-
-            {/* Upload Template */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Template DOCX <span className="text-red-500">*</span>
-              </label>
-              <div className="rounded-xl border-2 border-dashed border-slate-200 p-4 text-center">
-                {templateFile ? (
-                  <div>
-                    <p className="text-sm font-medium text-green-700">✓ {templateFile.name}</p>
-                    <p className="text-xs text-slate-400">{(templateFile.size / 1024).toFixed(0)} KB</p>
-                    <button type="button" onClick={() => { setTemplateFile(null); setQrConfirmed(false) }} className="mt-1 text-xs text-red-500">Hapus</button>
-                  </div>
-                ) : (
-                  <label className="cursor-pointer">
-                    <p className="text-sm text-slate-500">📄 Klik untuk pilih template DOCX</p>
-                    <p className="text-xs text-slate-400">Gunakan SK_PNS_FIX_READY.docx</p>
-                    <input type="file" accept=".docx" className="hidden" onChange={(e) => setTemplateFile(e.target.files?.[0] || null)} />
                   </label>
                 )}
               </div>
@@ -306,6 +367,23 @@ export default function BulkSignSkPage() {
                   {singlePage ? "Hal ke-2+ dihapus" : "Semua halaman"}
                 </span>
               </div>
+
+              {/* Toggle TTE (BSrE) */}
+              <div className="flex items-center gap-3 rounded-xl border bg-slate-50 px-4 py-3">
+                <input
+                  type="checkbox"
+                  id="useTte"
+                  checked={useTte}
+                  onChange={(e) => setUseTte(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                />
+                <label htmlFor="useTte" className="flex-1 text-sm font-medium text-slate-700 cursor-pointer">
+                  Tanda Tangan Elektronik (BSrE)
+                </label>
+                <span className="text-xs text-slate-400">
+                  {useTte ? "Kredensial diminta saat proses" : "Nonaktif"}
+                </span>
+              </div>
             </div>
 
             {/* QR Position */}
@@ -330,7 +408,7 @@ export default function BulkSignSkPage() {
             {/* Submit */}
             <button
               onClick={handleClickMulai}
-              disabled={loading || !excelFile || !templateFile}
+              disabled={loading || !excelFile}
               className="w-full rounded-xl bg-slate-900 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
             >
               {loading ? (
@@ -348,6 +426,7 @@ export default function BulkSignSkPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-xs text-slate-500">
                   <span>
+                    {phaseLabel && <span className="font-medium text-slate-700">{phaseLabel} · </span>}
                     {totalRows > 0
                       ? `${processedRows} / ${totalRows} dokumen`
                       : (progress || "Memproses...")}
@@ -472,7 +551,7 @@ export default function BulkSignSkPage() {
             <div className="rounded-2xl border bg-white p-12 text-center">
               <p className="text-5xl mb-4">📋</p>
               <p className="font-medium text-slate-700 mb-1">Siap Generate SK Massal</p>
-              <p className="text-sm text-slate-400">Upload Excel + Template DOCX lalu klik Mulai</p>
+              <p className="text-sm text-slate-400">Upload Excel, pilih template golongan & tanggal, lalu klik Mulai</p>
             </div>
           )}
 
@@ -594,6 +673,90 @@ export default function BulkSignSkPage() {
                     Memverifikasi...
                   </span>
                 ) : "Konfirmasi →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KREDENSIAL TTE (BSrE) */}
+      {showTteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <div className="text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
+                <span className="text-xl">🖊️</span>
+              </div>
+              <h2 className="font-bold text-slate-800">Kredensial Tanda Tangan Elektronik</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Masukkan kredensial BSrE. Data ini hanya dipakai untuk proses ini dan tidak disimpan.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Username</label>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={tte.username}
+                  onChange={(e) => setTte({ ...tte, username: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Password</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={tte.password}
+                  onChange={(e) => setTte({ ...tte, password: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">NIK Penandatangan</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={tte.nik}
+                  onChange={(e) => setTte({ ...tte, nik: e.target.value.replace(/\D/g, "") })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Passphrase</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={tte.passphrase}
+                  onChange={(e) => setTte({ ...tte, passphrase: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+            </div>
+
+            {tteError && (
+              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">✗ {tteError}</p>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowTteModal(false)
+                  setTteError("")
+                  setTte({ username: "", password: "", nik: "", passphrase: "" })
+                }}
+                className="flex-1 rounded-xl border py-2.5 text-sm hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleTteConfirm}
+                className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Tandatangani →
               </button>
             </div>
           </div>

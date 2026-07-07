@@ -21,9 +21,11 @@ export async function GET(
 
   const fileBuffer = fs.readFileSync(filePath)
   const isZip = safeName.endsWith(".zip")
-  const contentType = isZip ? "application/zip" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  const contentType = isZip
+    ? "application/zip"
+    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-  return new NextResponse(fileBuffer, {
+  return new NextResponse(new Uint8Array(fileBuffer), {
     headers: {
       "Content-Disposition": `attachment; filename="${safeName}"`,
       "Content-Type": contentType,

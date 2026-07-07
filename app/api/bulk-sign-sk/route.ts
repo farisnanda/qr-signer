@@ -12,6 +12,8 @@ import * as XLSX from "xlsx"
 import PizZip from "pizzip"
 import AdmZip from "adm-zip"
 import { prisma } from "@/lib/prisma"
+import { checkUserStatusV2, signPdfV2 } from "@/lib/bsre"
+import { publicVerifyUrl } from "@/lib/urls"
 
 const GAJI_PNS_MAP: Record<string, number> = {
   "II/a": 2218400,
@@ -41,6 +43,18 @@ const NOMOR_SK_MAP: Record<string, string> = {
   "III/a": "1881",
   "III/b": "1882",
   "III/c": "1884",
+}
+
+// Prefix penamaan file output SK (terlepas dari golongan template): SK_PNS_<DDMMYYYY>.
+const SK_PREFIX = "SK_PNS"
+
+// Template SK CPNS tersimpan di server (private/*.docx) dan dipilih berdasarkan golongan.
+// File template ini read-only dan tidak boleh diubah oleh proses generate.
+const TEMPLATE_MAP: Record<string, { file: string; label: string }> = {
+  IIa: { file: "IIa.docx", label: "SK_CPNS_IIa" },
+  IIc: { file: "IIc.docx", label: "SK_CPNS_IIc" },
+  IIIab: { file: "IIIab.docx", label: "SK_CPNS_IIIab" },
+  Profesi: { file: "Profesi.docx", label: "SK_CPNS_Profesi" },
 }
 
 function formatRupiah(nominal: number): string {
@@ -189,8 +203,8 @@ export async function POST(req: Request) {
 
   const formData = await req.formData()
   const excelFile = formData.get("excel") as File
-  const templateFile = formData.get("template") as File
-  const jenisSk = (formData.get("jenisSk") as string) || "SK_PNS"
+  const templateKey = (formData.get("templateKey") as string) || ""
+  const dateStrInput = (formData.get("dateStr") as string) || ""
   const qrX = Number(formData.get("qrX") || 50)
   const qrY = Number(formData.get("qrY") || 50)
   const qrWidth = Number(formData.get("qrWidth") || 120)
@@ -201,9 +215,33 @@ export async function POST(req: Request) {
   const useQr = formData.get("useQr") === "true"
   const singlePage = formData.get("singlePage") === "true"
 
-  if (!excelFile || !templateFile) {
-    return new Response(JSON.stringify({ error: "File Excel dan template wajib diupload" }), { status: 400 })
+  // Parameter TTE (BSrE v2). Kredensial bersifat transien — tidak disimpan/di-log.
+  const useTte = formData.get("useTte") === "true"
+  const bsreUsername = (formData.get("bsreUsername") as string) || ""
+  const bsrePassword = (formData.get("bsrePassword") as string) || ""
+  const nik = (formData.get("nik") as string) || ""
+  const passphrase = (formData.get("passphrase") as string) || ""
+  const chunkSize = Math.min(Math.max(Number(formData.get("chunkSize") || 100), 1), 1000)
+  const bsreBaseUrl = process.env.BSRE_BASE_URL || ""
+
+  const template = TEMPLATE_MAP[templateKey]
+  if (!excelFile || !template) {
+    return new Response(JSON.stringify({ error: "File Excel dan pilihan template golongan wajib diisi" }), { status: 400 })
   }
+  if (useTte && (!bsreUsername || !bsrePassword || !nik || !passphrase)) {
+    return new Response(JSON.stringify({ error: "Kredensial TTE (username, password, NIK, passphrase) wajib diisi" }), { status: 400 })
+  }
+  if (useTte && !bsreBaseUrl) {
+    return new Response(JSON.stringify({ error: "BSRE_BASE_URL belum dikonfigurasi di server" }), { status: 500 })
+  }
+  const jenisSk = template.label
+
+  // Tanggal SK diinput manual (mendukung SK mundur). Fallback ke hari ini jika kosong/invalid.
+  const templatePath = path.join(process.cwd(), "private", template.file)
+  const nowDate = new Date()
+  const dateStr = /^\d{8}$/.test(dateStrInput)
+    ? dateStrInput
+    : `${String(nowDate.getDate()).padStart(2, "0")}${String(nowDate.getMonth() + 1).padStart(2, "0")}${nowDate.getFullYear()}`
 
   const encoder = new TextEncoder()
 
@@ -228,10 +266,10 @@ export async function POST(req: Request) {
           return String(r["NIP BARU"] || "").trim() && String(r["NAMA"] || "").trim()
         })
 
-        const templateBuffer = Buffer.from(await templateFile.arrayBuffer())
-        const dateStr = "01062026"
+        const templateBuffer = fs.readFileSync(templatePath)
 
-        const outputDir = path.join(process.cwd(), "private/uploads/bulk_sk")
+        const uploadsDir = path.join(process.cwd(), "private/uploads")
+        const outputDir = path.join(uploadsDir, "bulk_sk")
         if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true })
 
         const batchId = uuidv4()
@@ -239,20 +277,47 @@ export async function POST(req: Request) {
         fs.mkdirSync(batchDir, { recursive: true })
 
         const total = rows.length
-        send({ type: "start", total })
 
-        let successCount = 0
-        let errorCount = 0
-        let processedCount = 0
-        const allResults: ResultItem[] = []
+        // Pre-check sertifikat penandatangan sebelum memproses seluruh batch.
+        if (useTte) {
+          send({ type: "status", message: "Memeriksa status sertifikat penandatangan..." })
+          const chk = await checkUserStatusV2({ baseUrl: bsreBaseUrl, username: bsreUsername, password: bsrePassword, nik })
+          if (!chk.ok) {
+            send({ type: "error", error: `Pre-check BSrE gagal: ${chk.error}` })
+            return
+          }
+          if (chk.active === false) {
+            send({ type: "error", error: `Sertifikat penandatangan tidak dapat dipakai: ${chk.message || chk.statusText || "tidak aktif"}` })
+            return
+          }
+        }
+
+        send({ type: "start", total, tte: useTte })
+
+        // Metadata per dokumen; sumber tunggal untuk hasil, ZIP, verifikasi, dan laporan.
+        type DocMeta = {
+          no: number
+          nip: string
+          nama: string
+          fileName: string
+          verifyToken: string | null
+          documentNo: string
+          title: string
+          ok: boolean
+          error?: string
+        }
+        const docMetas: DocMeta[] = []
 
         const BATCH_SIZE = 6
+        let genProcessed = 0
 
-        async function processRow(row: any, rowIndex: number) {
+        // FASE 1 — Generate PDF dari template (+ QR verifikasi milik kita).
+        async function generateRow(row: any, rowIndex: number) {
           const parsed = getRowData(row, jenisSk)
           if (!parsed) return
 
           const { nip, nama, data } = parsed
+          const fileName = `${SK_PREFIX}_${dateStr}_${nip}.pdf`
 
           try {
             const zip = new PizZip(templateBuffer)
@@ -266,9 +331,10 @@ export async function POST(req: Request) {
 
             const pdfBuffer = await convertDocxToPdf(docxBuffer, `${nip}.docx`)
             let finalPdf: Buffer
+            const verifyToken = useQr ? uuidv4() : null
 
-            if (useQr) {
-              const verifyUrl = `${process.env.NEXTAUTH_URL}/verify/${uuidv4()}`
+            if (useQr && verifyToken) {
+              const verifyUrl = publicVerifyUrl(verifyToken)
               finalPdf = await injectQrToPdf(pdfBuffer, verifyUrl, qrX, qrY, qrWidth, qrHeight, pageNumber, pdfScale, canvasHeight)
             } else {
               finalPdf = pdfBuffer
@@ -284,37 +350,103 @@ export async function POST(req: Request) {
               }
             }
 
-            const fileName = `${jenisSk}_${dateStr}_${nip}.pdf`
             await writeFile(path.join(batchDir, fileName), finalPdf)
-
-            successCount++
-            processedCount++
-            allResults.push({ no: rowIndex + 1, nip, nama, status: "Berhasil", fileName })
-            send({ type: "progress", processed: processedCount, total, nip, nama, status: "success", fileName })
+            docMetas.push({
+              no: rowIndex + 1, nip, nama, fileName, verifyToken,
+              documentNo: data.nomor_sk || nip, title: `${jenisSk} - ${nama}`, ok: true,
+            })
+            genProcessed++
+            send({ type: "progress", phase: "generate", processed: genProcessed, total, nip, nama, status: "success", fileName })
 
           } catch (err: any) {
-            // Log gagal ke server console
-            console.error(`[SIGN FAILED] NIP: ${nip} | Nama: ${nama} | Error: ${err?.message}`)
-
-            errorCount++
-            processedCount++
-            allResults.push({ no: rowIndex + 1, nip, nama, status: "Gagal", error: err?.message || "Gagal" })
-            send({ type: "progress", processed: processedCount, total, nip, nama, status: "error", error: err?.message || "Gagal" })
+            console.error(`[GENERATE FAILED] NIP: ${nip} | Nama: ${nama} | Error: ${err?.message}`)
+            docMetas.push({
+              no: rowIndex + 1, nip, nama, fileName, verifyToken: null,
+              documentNo: nip, title: `${jenisSk} - ${nama}`, ok: false, error: err?.message || "Gagal generate",
+            })
+            genProcessed++
+            send({ type: "progress", phase: "generate", processed: genProcessed, total, nip, nama, status: "error", error: err?.message || "Gagal" })
           }
         }
 
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
           const batch = rows.slice(i, i + BATCH_SIZE)
-          await Promise.all(batch.map((row, idx) => processRow(row, i + idx)))
+          await Promise.all(batch.map((row, idx) => generateRow(row, i + idx)))
         }
 
-        // Buat ZIP
-        const zipFileName = `${jenisSk}_${dateStr}_${batchId.slice(0, 8)}.zip`
+        // FASE 2 — TTE via BSrE (invisible), per-chunk dengan satu passphrase.
+        if (useTte) {
+          const okDocs = docMetas.filter(d => d.ok)
+          let signProcessed = 0
+          send({ type: "status", message: "Menandatangani dokumen via BSrE..." })
+
+          for (let i = 0; i < okDocs.length; i += chunkSize) {
+            const chunk = okDocs.slice(i, i + chunkSize)
+            const files = chunk.map(d => fs.readFileSync(path.join(batchDir, d.fileName)).toString("base64"))
+
+            const result = await signPdfV2({
+              baseUrl: bsreBaseUrl, username: bsreUsername, password: bsrePassword,
+              nik, passphrase, files,
+              signatureProperties: [{ tampilan: "INVISIBLE" }],
+            })
+
+            chunk.forEach((d, idx) => {
+              if (!result.ok) {
+                d.ok = false
+                d.error = `TTE gagal: ${result.error}`
+              } else {
+                const signedB64 = result.signed[idx]
+                if (!signedB64) {
+                  d.ok = false
+                  d.error = "TTE: file hasil tidak ditemukan pada response BSrE"
+                } else {
+                  fs.writeFileSync(path.join(batchDir, d.fileName), Buffer.from(signedB64, "base64"))
+                }
+              }
+              signProcessed++
+              send({
+                type: "progress", phase: "sign", processed: signProcessed, total: okDocs.length,
+                nip: d.nip, nama: d.nama, status: d.ok ? "success" : "error", fileName: d.ok ? d.fileName : undefined, error: d.error,
+              })
+            })
+          }
+        }
+
+        // FASE 3 — Finalisasi: salinan verifikasi + record Document (pakai file final/tertandatangani).
+        const verifyDocs = docMetas.filter(d => d.ok && d.verifyToken)
+        for (const d of verifyDocs) {
+          fs.copyFileSync(path.join(batchDir, d.fileName), path.join(uploadsDir, `${d.verifyToken}.pdf`))
+        }
+        if (verifyDocs.length > 0) {
+          try {
+            await prisma.document.createMany({
+              data: verifyDocs.map(d => ({
+                title: d.title,
+                documentNo: d.documentNo,
+                filePath: `/api/files/${d.verifyToken}.pdf`,
+                verifyToken: d.verifyToken!,
+              })),
+            })
+          } catch (docErr: any) {
+            console.error("[DOCUMENT CREATE ERROR]", docErr?.message)
+          }
+        }
+
+        const allResults: ResultItem[] = docMetas.map(d => ({
+          no: d.no, nip: d.nip, nama: d.nama,
+          status: d.ok ? "Berhasil" : "Gagal",
+          fileName: d.ok ? d.fileName : undefined,
+          error: d.ok ? undefined : (d.error || "Gagal"),
+        }))
+        const successCount = allResults.filter(r => r.status === "Berhasil").length
+        const errorCount = allResults.length - successCount
+
+        // Buat ZIP — hanya dokumen yang benar-benar berhasil (dan tertandatangani jika TTE).
+        const zipFileName = `${SK_PREFIX}_${dateStr}_${batchId.slice(0, 8)}.zip`
         const zipFilePath = path.join(outputDir, zipFileName)
         const admZip = new AdmZip()
-        const pdfFiles = fs.readdirSync(batchDir).filter(f => f.endsWith(".pdf"))
-        for (const pdfFile of pdfFiles) {
-          admZip.addLocalFile(path.join(batchDir, pdfFile))
+        for (const d of docMetas) {
+          if (d.ok) admZip.addLocalFile(path.join(batchDir, d.fileName))
         }
         admZip.writeZip(zipFilePath)
         fs.rmSync(batchDir, { recursive: true, force: true })
@@ -346,7 +478,7 @@ export async function POST(req: Request) {
         ]
         XLSX.utils.book_append_sheet(reportwb, detailSheet, "Detail")
 
-        const reportFileName = `LAPORAN_${jenisSk}_${dateStr}_${batchId.slice(0, 8)}.xlsx`
+        const reportFileName = `LAPORAN_${SK_PREFIX}_${dateStr}_${batchId.slice(0, 8)}.xlsx`
         const reportFilePath = path.join(outputDir, reportFileName)
         const reportBuffer = XLSX.write(reportwb, { type: "buffer", bookType: "xlsx" })
         await writeFile(reportFilePath, reportBuffer)

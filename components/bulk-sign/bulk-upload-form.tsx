@@ -57,7 +57,7 @@ export function BulkUploadForm() {
     }
 
     // Cek apakah user punya 2FA aktif
-    const sessionRes = await fetch("/api/auth/session")
+    const sessionRes = await fetch("/qr-signer/api/auth/session")
     const sessionData = await sessionRes.json()
     const hasTwoFactor = sessionData?.user?.twoFactorEnabled
 
@@ -76,7 +76,7 @@ export function BulkUploadForm() {
     setTwoFactorLoading(true)
     setTwoFactorError("")
 
-    const res = await fetch("/api/2fa/validate-action", {
+    const res = await fetch("/qr-signer/api/2fa/validate-action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: twoFactorCode }),
@@ -129,7 +129,7 @@ export function BulkUploadForm() {
         formData.append("batchTotal", files.length.toString())
         formData.append("batchIndex", i.toString())
 
-        const response = await fetch("/api/bulk-sign", {
+        const response = await fetch("/qr-signer/api/bulk-sign", {
           method: "POST",
           body: formData,
         })
@@ -159,7 +159,7 @@ export function BulkUploadForm() {
       await Promise.all(
         allResults.map(async (item: any) => {
           try {
-            const fileResponse = await fetch(window.location.origin + item.filePath)
+            const fileResponse = await fetch(window.location.origin + "/qr-signer" + item.filePath)
             const blob = await fileResponse.blob()
             zip.file(`${item.title}_verified.pdf`, blob)
           } catch (err) {

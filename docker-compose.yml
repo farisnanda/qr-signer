@@ -11,6 +11,10 @@ services:
       - NEXTAUTH_SECRET=c456f6a85b7765b23a44a49a070b85b613bea62cf501f3b58eee750c979cdfc0
       - NEXTAUTH_URL=https://apps.bkd.jatimprov.go.id/qr-signer
       - GOTENBERG_URL=http://gotenberg-signer:3000
+      # Base URL BSrE Esign Client Service (akses via IP VPS yang di-whitelist).
+      # Ini environment DEV; ganti ke URL produksi saat go-live.
+      # Kredensial username/password TIDAK di sini (transien saat TTE).
+      - BSRE_BASE_URL=https://esign-dev.jatimprov.go.id
     volumes:
       - signer-uploads:/app/private/uploads
     depends_on:

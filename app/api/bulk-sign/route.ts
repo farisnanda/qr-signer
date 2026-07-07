@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma"
 import { v4 as uuidv4 } from "uuid"
 import { PDFDocument } from "pdf-lib"
 import QRCode from "qrcode"
+import { publicVerifyUrl } from "@/lib/urls"
 
 export async function POST(req: Request) {
   try {
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     const filePath = path.join(process.cwd(), "private/uploads", fileName)
 
     const verifyToken = uuidv4()
-    const verifyUrl = `${process.env.NEXTAUTH_URL}/verify/${verifyToken}`
+    const verifyUrl = publicVerifyUrl(verifyToken)
 
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
       errorCorrectionLevel: "H",
