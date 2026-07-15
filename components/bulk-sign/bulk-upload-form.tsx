@@ -36,6 +36,13 @@ export function BulkUploadForm() {
   const [twoFactorError, setTwoFactorError] = useState("")
   const [twoFactorLoading, setTwoFactorLoading] = useState(false)
 
+  // TTE (BSrE) — kredensial transien, tidak disimpan
+  const [useTte, setUseTte] = useState(true)
+  const [showTteModal, setShowTteModal] = useState(false)
+  const [tteError, setTteError] = useState("")
+  const [tteLoading, setTteLoading] = useState(false)
+  const [tte, setTte] = useState({ username: "", password: "", nik: "", passphrase: "" })
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(e.target.files || [])
     setFiles(selectedFiles)
@@ -64,7 +71,49 @@ export function BulkUploadForm() {
     if (hasTwoFactor) {
       setShowTwoFactorModal(true)
     } else {
+      proceedAfterAuth()
+    }
+  }
+
+  // Setelah otorisasi aplikasi (2FA), minta kredensial TTE bila diaktifkan.
+  function proceedAfterAuth() {
+    if (useTte) {
+      setTteError("")
+      setShowTteModal(true)
+    } else {
       handleUpload()
+    }
+  }
+
+  async function handleTteConfirm() {
+    if (!tte.username || !tte.password || !tte.nik || !tte.passphrase) {
+      setTteError("Username, password, NIK, dan passphrase wajib diisi")
+      return
+    }
+    setTteLoading(true)
+    setTteError("")
+    try {
+      const res = await fetch("/qr-signer/api/bsre/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bsreUsername: tte.username, bsrePassword: tte.password, nik: tte.nik }),
+      })
+      const data = await res.json()
+      setTteLoading(false)
+      if (!res.ok) {
+        setTteError(data.error || "Pre-check BSrE gagal")
+        return
+      }
+      if (data.active === false) {
+        setTteError(`Sertifikat tidak dapat dipakai: ${data.message || data.status || "tidak aktif"}`)
+        return
+      }
+      setShowTteModal(false)
+      setTteError("")
+      handleUpload()
+    } catch {
+      setTteLoading(false)
+      setTteError("Gagal menghubungi server")
     }
   }
 
@@ -93,7 +142,7 @@ export function BulkUploadForm() {
     setShowTwoFactorModal(false)
     setTwoFactorCode("")
     setTwoFactorError("")
-    handleUpload()
+    proceedAfterAuth()
   }
 
   async function handleUpload() {
@@ -128,6 +177,13 @@ export function BulkUploadForm() {
         formData.append("batchCode", batchCode)
         formData.append("batchTotal", files.length.toString())
         formData.append("batchIndex", i.toString())
+        if (useTte) {
+          formData.append("useTte", "true")
+          formData.append("bsreUsername", tte.username)
+          formData.append("bsrePassword", tte.password)
+          formData.append("nik", tte.nik)
+          formData.append("passphrase", tte.passphrase)
+        }
 
         const response = await fetch("/qr-signer/api/bulk-sign", {
           method: "POST",
@@ -173,6 +229,8 @@ export function BulkUploadForm() {
 
     setProgressText("Selesai!")
     setLoading(false)
+    // Hapus kredensial TTE dari memori setelah proses selesai.
+    setTte({ username: "", password: "", nik: "", passphrase: "" })
   }
 
   return (
@@ -248,6 +306,23 @@ export function BulkUploadForm() {
             )}
           </div>
         )}
+
+        {/* Toggle TTE (BSrE) */}
+        <div className="flex items-center gap-3 rounded-xl border bg-slate-50 px-4 py-3">
+          <input
+            type="checkbox"
+            id="useTteBulk"
+            checked={useTte}
+            onChange={(e) => setUseTte(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+          />
+          <label htmlFor="useTteBulk" className="flex-1 text-sm font-medium text-slate-700 cursor-pointer">
+            Tanda Tangan Elektronik (BSrE)
+          </label>
+          <span className="text-xs text-slate-400">
+            {useTte ? "Kredensial diminta saat proses" : "Nonaktif"}
+          </span>
+        </div>
 
         <Button
           onClick={handleClickProcess}
@@ -337,6 +412,96 @@ export function BulkUploadForm() {
                     Memverifikasi...
                   </span>
                 ) : "Konfirmasi →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KREDENSIAL TTE (BSrE) */}
+      {showTteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 space-y-4">
+            <div className="text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
+                <span className="text-xl">🖊️</span>
+              </div>
+              <h2 className="font-bold text-slate-800">Kredensial Tanda Tangan Elektronik</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Masukkan kredensial BSrE. Data ini hanya dipakai untuk proses ini dan tidak disimpan.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Username</label>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={tte.username}
+                  onChange={(e) => setTte({ ...tte, username: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Password</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={tte.password}
+                  onChange={(e) => setTte({ ...tte, password: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">NIK Penandatangan</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={tte.nik}
+                  onChange={(e) => setTte({ ...tte, nik: e.target.value.replace(/\D/g, "") })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Passphrase</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={tte.passphrase}
+                  onChange={(e) => setTte({ ...tte, passphrase: e.target.value })}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-900"
+                />
+              </div>
+            </div>
+
+            {tteError && (
+              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">✗ {tteError}</p>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowTteModal(false)
+                  setTteError("")
+                  setTte({ username: "", password: "", nik: "", passphrase: "" })
+                }}
+                className="flex-1 rounded-xl border py-2.5 text-sm hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleTteConfirm}
+                disabled={tteLoading}
+                className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {tteLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Memeriksa...
+                  </span>
+                ) : "Tandatangani →"}
               </button>
             </div>
           </div>

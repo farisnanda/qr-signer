@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from "uuid"
 import { PDFDocument } from "pdf-lib"
 import QRCode from "qrcode"
 import { publicVerifyUrl } from "@/lib/urls"
+import { signPdfV2 } from "@/lib/bsre"
 
 export async function POST(req: Request) {
   try {
@@ -74,7 +75,35 @@ export async function POST(req: Request) {
     selectedPage.drawImage(qrPng, { x: finalX, y: finalY, width: finalWidth, height: finalHeight })
 
     const finalPdfBytes = await pdfDoc.save()
-    await writeFile(filePath, finalPdfBytes)
+
+    // TTE BSrE (opsional) — tandatangani PDF ber-QR sebelum disimpan.
+    let outputBytes: Uint8Array = finalPdfBytes
+    const useTte = formData.get("useTte") === "true"
+    if (useTte) {
+      const bsreBaseUrl = process.env.BSRE_BASE_URL || ""
+      const bsreUsername = (formData.get("bsreUsername") as string) || ""
+      const bsrePassword = (formData.get("bsrePassword") as string) || ""
+      const nik = (formData.get("nik") as string) || ""
+      const passphrase = (formData.get("passphrase") as string) || ""
+      if (!bsreBaseUrl) {
+        return NextResponse.json({ error: "BSRE_BASE_URL belum dikonfigurasi di server" }, { status: 500 })
+      }
+      if (!bsreUsername || !bsrePassword || !nik || !passphrase) {
+        return NextResponse.json({ error: "Kredensial TTE (username, password, NIK, passphrase) wajib diisi" }, { status: 400 })
+      }
+      const signRes = await signPdfV2({
+        baseUrl: bsreBaseUrl, username: bsreUsername, password: bsrePassword,
+        nik, passphrase,
+        files: [Buffer.from(finalPdfBytes).toString("base64")],
+        signatureProperties: [{ tampilan: "INVISIBLE" }],
+      })
+      if (!signRes.ok || !signRes.signed[0]) {
+        return NextResponse.json({ error: `TTE gagal: ${signRes.error || "respons BSrE tidak berisi file"}` }, { status: 502 })
+      }
+      outputBytes = Buffer.from(signRes.signed[0], "base64")
+    }
+
+    await writeFile(filePath, outputBytes)
 
     const document = await prisma.document.create({
       data: {
