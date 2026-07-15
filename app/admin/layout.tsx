@@ -11,11 +11,11 @@ export default async function AdminLayout({
   const session = await getServerSession(authOptions)
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar serverSession={session} />
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />
-        <main className="flex-1 p-6">
+        <main className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-6 lg:p-8">
           {children}
         </main>
       </div>
