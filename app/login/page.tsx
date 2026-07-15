@@ -65,7 +65,7 @@ function LoginForm() {
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-            <img src="/logo.png" alt="Logo" className="h-9 w-9 object-contain" />
+            <img src="/qr-signer/logo.png" alt="Logo" className="h-9 w-9 object-contain" />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">SUPER</h1>
           <p className="mt-1 text-xs text-slate-500">Badan Kepegawaian Daerah Provinsi Jawa Timur</p>
@@ -145,7 +145,21 @@ function LoginForm() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-600">
+        {/* BSrE */}
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white px-5 py-3 shadow-sm">
+            <img
+              src="/qr-signer/logo-bsre.png"
+              alt="Balai Besar Sertifikasi Elektronik"
+              className="h-9 w-auto object-contain"
+            />
+          </div>
+          <p className="text-center text-[11px] text-slate-500">
+            Tersertifikasi &amp; terintegrasi dengan BSrE — Badan Siber dan Sandi Negara
+          </p>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-slate-600">
           © {new Date().getFullYear()} Badan Kepegawaian Daerah Provinsi Jawa Timur
         </p>
       </div>
