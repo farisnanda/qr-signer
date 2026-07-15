@@ -258,11 +258,11 @@ export default function BulkSignSkPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Bulk Sign SK</h1>
-        <p className="text-slate-500">Generate SK massal dari Excel dan download sebagai ZIP</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Bulk Sign SK</h1>
+        <p className="mt-1 text-sm text-slate-500">Generate SK massal dari Excel dan download sebagai ZIP</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,480px)_1fr]">
 
         {/* FORM */}
         <div className="space-y-4">

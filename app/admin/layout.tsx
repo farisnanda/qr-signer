@@ -15,7 +15,7 @@ export default async function AdminLayout({
       <Sidebar serverSession={session} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />
-        <main className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-6 lg:p-8">
+        <main className="w-full flex-1 p-4 md:p-6 lg:p-8">
           {children}
         </main>
       </div>
