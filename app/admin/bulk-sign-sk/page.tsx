@@ -266,7 +266,7 @@ export default function BulkSignSkPage() {
 
         {/* FORM */}
         <div className="space-y-4">
-          <div className="rounded-2xl border bg-white p-6 space-y-4">
+          <div className="rounded-2xl border bg-white shadow-sm p-6 space-y-4">
             <h2 className="font-bold text-slate-800">Konfigurasi</h2>
 
             {error && (
@@ -307,7 +307,7 @@ export default function BulkSignSkPage() {
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 File Data Excel (.xlsx) <span className="text-red-500">*</span>
               </label>
-              <div className="rounded-xl border-2 border-dashed border-slate-200 p-4 text-center">
+              <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center">
                 {excelFile ? (
                   <div>
                     <p className="text-sm font-medium text-green-700">✓ {excelFile.name}</p>
@@ -513,7 +513,7 @@ export default function BulkSignSkPage() {
           )}
 
           {results.length > 0 && (
-            <div className="rounded-2xl border bg-white overflow-hidden">
+            <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
               <div className="border-b px-4 py-3 flex items-center justify-between">
                 <h2 className="font-bold text-sm">Hasil Proses</h2>
                 <div className="flex items-center gap-2">
@@ -548,7 +548,7 @@ export default function BulkSignSkPage() {
           )}
 
           {!summary && !loading && results.length === 0 && (
-            <div className="rounded-2xl border bg-white p-12 text-center">
+            <div className="rounded-2xl border bg-white shadow-sm p-12 text-center">
               <p className="text-5xl mb-4">📋</p>
               <p className="font-medium text-slate-700 mb-1">Siap Generate SK Massal</p>
               <p className="text-sm text-slate-400">Upload Excel, pilih template golongan & tanggal, lalu klik Mulai</p>
@@ -556,7 +556,7 @@ export default function BulkSignSkPage() {
           )}
 
           {loading && results.length === 0 && (
-            <div className="rounded-2xl border bg-white p-10 text-center">
+            <div className="rounded-2xl border bg-white shadow-sm p-10 text-center">
               <div className="flex justify-center mb-5">
                 <div className="relative h-20 w-20">
                   <svg className="h-20 w-20 -rotate-90" viewBox="0 0 64 64">
@@ -581,7 +581,7 @@ export default function BulkSignSkPage() {
           )}
 
           {loading && results.length > 0 && totalRows > 0 && (
-            <div className="rounded-2xl border bg-white p-4">
+            <div className="rounded-2xl border bg-white shadow-sm p-4">
               <div className="flex items-center gap-4">
                 <div className="relative h-14 w-14 shrink-0">
                   <svg className="h-14 w-14 -rotate-90" viewBox="0 0 64 64">
@@ -777,7 +777,7 @@ export default function BulkSignSkPage() {
 
             <div className="flex-1 overflow-y-auto p-5">
               {!previewFile ? (
-                <div className="rounded-xl border-2 border-dashed border-slate-200 p-10 text-center">
+                <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center">
                   <p className="text-2xl mb-3">📄</p>
                   <p className="text-sm text-slate-600 mb-1 font-medium">Upload PDF sample</p>
                   <p className="text-xs text-slate-400 mb-4">Upload salah satu PDF SK untuk menentukan posisi QR Code</p>
