@@ -4,9 +4,11 @@
 // penandatangan (nik + passphrase) di body. Kredensial bersifat transien — dikirim
 // dari modal TTE per proses, TIDAK disimpan/di-log di server.
 //
-// CATATAN: Collection Postman tidak menyertakan contoh response, jadi parsing di bawah
-// bersifat best-effort dan sengaja fleksibel. Sesuaikan `extractSignedFiles` /
-// `interpretStatus` begitu format response asli BSrE diketahui.
+// Format response BSrE v2 (terkonfirmasi via dev esign-dev.jatimprov.go.id):
+//   sign/pdf sukses : { time: <ms>, file: ["<base64 PDF>", ...] }  (urutan sesuai input)
+//   sign/pdf error  : HTTP 4xx { error: "<pesan>", status_code: <int> }
+//   check/status    : { status_code: "<str>", message: "<pesan>", status: "ISSUE"|"REVOKE"|... }
+// Parser di bawah tetap menyimpan fallback defensif untuk bentuk lain.
 
 export type BsreCredentials = {
   baseUrl: string
@@ -33,16 +35,16 @@ function describeFetchError(err: any): string {
 }
 
 /**
- * Mengambil array PDF base64 hasil TTD dari berbagai kemungkinan bentuk response.
- * Disesuaikan saat format asli BSrE diketahui.
+ * Mengambil array PDF base64 hasil TTD dari response BSrE.
+ * Format terkonfirmasi: `json.file` (array base64). Kandidat lain = fallback defensif.
  */
 function extractSignedFiles(json: any): string[] {
   const candidates = [
+    json?.file, // format terkonfirmasi BSrE v2
+    json?.files,
     json?.data?.file,
     json?.data?.files,
     json?.data?.base64_file,
-    json?.file,
-    json?.files,
     json?.data,
     json?.result,
   ]
