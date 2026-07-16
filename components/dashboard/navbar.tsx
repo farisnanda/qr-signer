@@ -157,7 +157,7 @@ export function Navbar() {
         </div>
 
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ callbackUrl: "/qr-signer/login" })}
           className="flex h-9 items-center gap-1.5 rounded-xl bg-red-50 px-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
         >
           <LogOut className="h-4 w-4" />
