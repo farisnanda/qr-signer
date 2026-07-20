@@ -15,6 +15,14 @@ services:
       # Ini environment DEV; ganti ke URL produksi saat go-live.
       # Kredensial username/password TIDAK di sini (transien saat TTE).
       - BSRE_BASE_URL=https://esign-dev.jatimprov.go.id
+      # Minio Object Storage (S3-compatible) untuk menyimpan SK hasil.
+      # PENTING: MINIO_ACCESS_KEY & MINIO_SECRET_KEY harus diset via .env file terpisah
+      # atau docker secrets, JANGAN di-commit. Format: siasn.bdk.jatimprov.go.id:9000
+      - MINIO_ENDPOINT=siasn.bdk.jatimprov.go.id
+      - MINIO_PORT=9000
+      - MINIO_BUCKET=qr-signer-sk
+      # MINIO_ACCESS_KEY=<user>  (set via docker run -e atau .env)
+      # MINIO_SECRET_KEY=<pass>  (set via docker run -e atau .env)
     volumes:
       - signer-uploads:/app/private/uploads
     depends_on:
