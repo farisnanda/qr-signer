@@ -67,11 +67,11 @@ async function handleDisable(e: React.FormEvent) {
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Keamanan Akun</h1>
-        <p className="text-slate-500">Kelola autentikasi dua faktor (2FA)</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Keamanan Akun</h1>
+        <p className="mt-1 text-sm text-slate-500">Kelola autentikasi dua faktor (2FA)</p>
       </div>
 
-      <div className="rounded-2xl border bg-white p-6 space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-bold text-slate-800">Autentikasi Dua Faktor</h2>

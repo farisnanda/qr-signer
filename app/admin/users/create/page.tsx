@@ -46,25 +46,25 @@ export default function CreateUserPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Tambah User</h1>
-        <p className="text-slate-500">Buat akun pengguna baru.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tambah User</h1>
+        <p className="mt-1 text-sm text-slate-500">Buat akun pengguna baru.</p>
       </div>
 
-      <div className="max-w-lg rounded-2xl border bg-white p-6">
+      <div className="max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium">Nama</label>
-            <input type="text" name="name" required className="w-full rounded-lg border px-4 py-2" />
+            <input type="text" name="name" required className="w-full rounded-lg border border-slate-200 px-4 py-2" />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium">Email</label>
-            <input type="email" name="email" required className="w-full rounded-lg border px-4 py-2" />
+            <input type="email" name="email" required className="w-full rounded-lg border border-slate-200 px-4 py-2" />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium">Password</label>
-            <input type="password" name="password" required className="w-full rounded-lg border px-4 py-2" />
+            <input type="password" name="password" required className="w-full rounded-lg border border-slate-200 px-4 py-2" />
           </div>
 
           <div>
@@ -74,7 +74,7 @@ export default function CreateUserPage() {
               value={role}
               onChange={(e) => setRole(e.target.value)}
               required
-              className="w-full rounded-lg border px-4 py-2"
+              className="w-full rounded-lg border border-slate-200 px-4 py-2"
             >
               <option value="BIDANG">Bidang</option>
               <option value="KABAN">Kaban</option>
@@ -85,7 +85,7 @@ export default function CreateUserPage() {
           {role === "BIDANG" && (
             <div>
               <label className="mb-1 block text-sm font-medium">Bidang</label>
-              <select name="bidang" required className="w-full rounded-lg border px-4 py-2">
+              <select name="bidang" required className="w-full rounded-lg border border-slate-200 px-4 py-2">
                 <option value="">Pilih Bidang</option>
                 <option value="204.1">Sekretariat</option>
                 <option value="204.2">P3DASI</option>
@@ -104,14 +104,14 @@ export default function CreateUserPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="w-full rounded-xl border py-3 text-sm hover:bg-slate-100"
+              className="w-full rounded-xl border border-slate-200 py-3 text-sm hover:bg-slate-50 transition"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-black py-3 text-white disabled:opacity-50"
+              className="w-full rounded-xl bg-blue-600 py-3 text-white transition hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "Menyimpan..." : "Simpan"}
             </button>
