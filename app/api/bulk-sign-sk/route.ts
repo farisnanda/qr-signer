@@ -14,6 +14,9 @@ import AdmZip from "adm-zip"
 import { prisma } from "@/lib/prisma"
 import { checkUserStatusV2, signPdfV2 } from "@/lib/bsre"
 import { publicVerifyUrl } from "@/lib/urls"
+import { uploadToMinio, getPresignedUrl } from "@/lib/minio"
+
+const MINIO_BUCKET = process.env.MINIO_BUCKET || "qr-signer-sk"
 
 const GAJI_PNS_MAP: Record<string, number> = {
   "II/a": 2218400,
@@ -412,20 +415,39 @@ export async function POST(req: Request) {
           }
         }
 
-        // FASE 3 — Finalisasi: salinan verifikasi + record Document (pakai file final/tertandatangani).
+        // FASE 3 — Finalisasi: upload verifikasi QR ke Minio + record Document.
         const verifyDocs = docMetas.filter(d => d.ok && d.verifyToken)
+        const docRecords: Array<{
+          title: string
+          documentNo: string
+          filePath: string
+          verifyToken: string
+        }> = []
+
         for (const d of verifyDocs) {
-          fs.copyFileSync(path.join(batchDir, d.fileName), path.join(uploadsDir, `${d.verifyToken}.pdf`))
+          try {
+            const pdfBuffer = fs.readFileSync(path.join(batchDir, d.fileName))
+            const objectName = `verify/${d.verifyToken}.pdf`
+            await uploadToMinio(MINIO_BUCKET, objectName, pdfBuffer)
+
+            // Presigned URL (publik, berlaku 7 hari untuk download)
+            const presignedUrl = await getPresignedUrl(MINIO_BUCKET, objectName)
+
+            docRecords.push({
+              title: d.title,
+              documentNo: d.documentNo,
+              filePath: presignedUrl, // URL publik Minio
+              verifyToken: d.verifyToken!,
+            })
+          } catch (uploadErr: any) {
+            console.error(`[MINIO UPLOAD ERROR] Verify: ${d.verifyToken} | ${uploadErr?.message}`)
+          }
         }
-        if (verifyDocs.length > 0) {
+
+        if (docRecords.length > 0) {
           try {
             await prisma.document.createMany({
-              data: verifyDocs.map(d => ({
-                title: d.title,
-                documentNo: d.documentNo,
-                filePath: `/api/files/${d.verifyToken}.pdf`,
-                verifyToken: d.verifyToken!,
-              })),
+              data: docRecords,
             })
           } catch (docErr: any) {
             console.error("[DOCUMENT CREATE ERROR]", docErr?.message)
@@ -449,7 +471,6 @@ export async function POST(req: Request) {
           if (d.ok) admZip.addLocalFile(path.join(batchDir, d.fileName))
         }
         admZip.writeZip(zipFilePath)
-        fs.rmSync(batchDir, { recursive: true, force: true })
 
         // Buat laporan Excel
         const reportwb = XLSX.utils.book_new()
@@ -479,11 +500,22 @@ export async function POST(req: Request) {
         XLSX.utils.book_append_sheet(reportwb, detailSheet, "Detail")
 
         const reportFileName = `LAPORAN_${SK_PREFIX}_${dateStr}_${batchId.slice(0, 8)}.xlsx`
-        const reportFilePath = path.join(outputDir, reportFileName)
         const reportBuffer = XLSX.write(reportwb, { type: "buffer", bookType: "xlsx" })
-        await writeFile(reportFilePath, reportBuffer)
 
-        // Simpan ke DB
+        // Upload ZIP dan laporan ke Minio
+        let zipMinioPath: string | null = null
+        let reportMinioPath: string | null = null
+        try {
+          zipMinioPath = await uploadToMinio(MINIO_BUCKET, `batch/${batchId}/${zipFileName}`, fs.readFileSync(zipFilePath))
+          reportMinioPath = await uploadToMinio(MINIO_BUCKET, `batch/${batchId}/${reportFileName}`, reportBuffer)
+        } catch (minioErr: any) {
+          console.error(`[MINIO UPLOAD ERROR] Batch: ${batchId} | ${minioErr?.message}`)
+        }
+
+        // Hapus folder batch lokal
+        fs.rmSync(batchDir, { recursive: true, force: true })
+
+        // Simpan ke DB — jika Minio upload gagal, simpan null (fallback: tetap filesystem)
         try {
           const batchRecord = await prisma.signBatch.create({
             data: {
@@ -492,8 +524,8 @@ export async function POST(req: Request) {
               total,
               successCount,
               errorCount,
-              zipFileName,
-              reportFileName,
+              zipFileName: zipMinioPath || zipFileName, // Minio path jika ada, fallback ke filename lokal
+              reportFileName: reportMinioPath || reportFileName,
               signedBy: session.user.email!,
             },
           })
