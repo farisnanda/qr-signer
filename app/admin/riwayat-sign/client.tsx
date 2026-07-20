@@ -63,9 +63,9 @@ function BatchTable({ batch }: { batch: Batch }) {
   }
 
   return (
-    <div className="rounded-2xl border bg-white overflow-hidden">
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
       {/* Header batch */}
-      <div className="border-b px-6 py-4 flex items-center justify-between gap-4 bg-slate-50">
+      <div className="border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-4 bg-slate-50">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="rounded-lg bg-slate-200 px-2 py-0.5 text-xs font-mono text-slate-600">

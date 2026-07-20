@@ -234,9 +234,9 @@ export function BulkUploadForm() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,480px)_1fr]">
       {/* LEFT */}
-      <div className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div>
           <h2 className="text-2xl font-bold">Bulk Upload PDF</h2>
           <p className="text-sm text-slate-500">Upload banyak PDF sekaligus dan tambahkan QR verifikasi otomatis.</p>
@@ -248,13 +248,13 @@ export function BulkUploadForm() {
         </div>
 
         {files.length > 0 && (
-          <div className="space-y-2 rounded-xl border bg-slate-50 p-3">
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <div className="text-sm font-semibold">
               Total File: <span className="text-blue-600">{files.length}</span>
             </div>
             <div className="max-h-40 space-y-1 overflow-auto">
               {files.map((file, index) => (
-                <div key={index} className="rounded-lg border bg-white p-2 text-sm">
+                <div key={index} className="rounded-lg border border-slate-200 bg-white p-2 text-sm">
                   {file.name}
                 </div>
               ))}
@@ -277,7 +277,7 @@ export function BulkUploadForm() {
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
               <div
-                className="h-full rounded-full bg-black transition-all duration-300"
+                className="h-full rounded-full bg-blue-600 transition-all duration-300"
                 style={{ width: progress + "%" }}
               />
             </div>
@@ -290,7 +290,7 @@ export function BulkUploadForm() {
 
         {/* HASIL SETELAH SELESAI */}
         {!loading && progress === 100 && (
-          <div className="space-y-2 rounded-xl border p-3">
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <div className="text-sm font-semibold">Hasil Proses:</div>
             <div className="flex gap-4 text-sm">
               <span className="text-green-600">✓ Berhasil: {successCount}</span>
@@ -349,7 +349,7 @@ export function BulkUploadForm() {
             onCanvasHeightChange={(h) => setCanvasHeight(h)}
           />
         ) : (
-          <div className="flex h-[700px] items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white text-slate-400">
+          <div className="flex h-[700px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
             Preview PDF akan muncul di sini
           </div>
         )}

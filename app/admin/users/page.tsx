@@ -29,20 +29,20 @@ export default async function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Manage User</h1>
-          <p className="text-slate-500">Kelola akun pengguna sistem.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manage User</h1>
+          <p className="mt-1 text-sm text-slate-500">Kelola akun pengguna sistem.</p>
         </div>
         <Link
           href="/admin/users/create"
-          className="rounded-lg bg-black px-4 py-2 text-sm text-white hover:bg-slate-800"
+          className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           + Tambah User
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-white">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full">
-          <thead className="bg-slate-100">
+          <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium">No</th>
               <th className="px-4 py-3 text-left text-sm font-medium">Nama</th>
@@ -62,7 +62,7 @@ export default async function UsersPage() {
               </tr>
             )}
             {users.map((user: any, index: number) => (
-              <tr key={user.id} className="border-t hover:bg-slate-50">
+              <tr key={user.id} className="border-t border-slate-100 transition hover:bg-slate-50">
                 <td className="px-4 py-3 text-sm">{index + 1}</td>
                 <td className="px-4 py-3 text-sm font-medium">{user.name ?? "-"}</td>
                 <td className="px-4 py-3 text-sm">{user.email}</td>
@@ -89,7 +89,7 @@ export default async function UsersPage() {
                   <div className="flex gap-2">
                     <Link
                       href={"/admin/users/" + user.id + "/edit"}
-                      className="rounded-lg border px-3 py-1 text-sm hover:bg-slate-100"
+                      className="rounded-lg border border-slate-200 px-3 py-1 text-sm transition hover:bg-slate-50"
                     >
                       Edit
                     </Link>

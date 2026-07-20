@@ -46,11 +46,18 @@ export default async function RiwayatSignPage({
   const totalPages = Math.ceil(totalBatches / PER_PAGE)
 
   return (
-    <RiwayatSignClient
-      batches={batches as any}
-      page={page}
-      totalPages={totalPages}
-      totalBatches={totalBatches}
-    />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Riwayat Sign</h1>
+        <p className="mt-1 text-sm text-slate-500">Daftar batch signing yang sudah diproses.</p>
+      </div>
+
+      <RiwayatSignClient
+        batches={batches as any}
+        page={page}
+        totalPages={totalPages}
+        totalBatches={totalBatches}
+      />
+    </div>
   )
 }
