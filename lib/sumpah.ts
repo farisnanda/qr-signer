@@ -1,6 +1,6 @@
 import { readFileSync } from "fs"
 import { join } from "path"
-import { PizZip } from "pizzip"
+import PizZip from "pizzip"
 
 interface SumpahData {
   nama: string
@@ -35,7 +35,8 @@ export async function convertDocxToPdfViaGotenberg(docxBuffer: Buffer): Promise<
   const gotenbergUrl = process.env.GOTENBERG_URL || "http://localhost:3000"
 
   const formData = new FormData()
-  formData.append("files", new Blob([docxBuffer], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }), "document.docx")
+  const blob = new Blob([new Uint8Array(docxBuffer)], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" })
+  formData.append("files", blob, "document.docx")
 
   const response = await fetch(`${gotenbergUrl}/forms/libreoffice/convert`, {
     method: "POST",

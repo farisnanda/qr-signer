@@ -65,20 +65,17 @@ export async function POST(request: Request) {
             })
 
             const filename = getSumpahFilename(nip)
-            await uploadToMinio("sumpah", filename, pdfBuffer, {
-              "Content-Type": "application/pdf",
-              "Original-Filename": filename,
-            })
+            await uploadToMinio("sumpah", filename, pdfBuffer)
 
-            const presignedUrl = await getPresignedUrl("sumpah", filename)
-
-            await prisma.document.create({
+            await prisma.signLog.create({
               data: {
                 batchId,
-                namaFile: nama,
+                jenisSk: "SUMPAH",
+                namaFile: filename,
                 nip,
-                filePath: presignedUrl,
+                nama,
                 status: "success",
+                signedBy: session.user.email!,
               },
             })
 
