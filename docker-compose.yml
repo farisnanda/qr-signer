@@ -50,6 +50,8 @@ services:
       context: .
       dockerfile: Dockerfile.gotenberg
     container_name: gotenberg-signer
+    ports:
+      - "3000:3000"
     networks:
       - network-sharing
     restart: unless-stopped
