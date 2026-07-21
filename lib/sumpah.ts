@@ -1,6 +1,7 @@
 import { readFileSync } from "fs"
 import { join } from "path"
 import PizZip from "pizzip"
+import { PDFDocument } from "pdf-lib"
 
 interface SumpahData {
   nama: string
@@ -38,22 +39,14 @@ export async function convertDocxToPdfViaGotenberg(docxBuffer: Buffer): Promise<
   const blob = new Blob([new Uint8Array(docxBuffer)], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" })
   formData.append("files", blob, "document.docx")
 
-  // Force 1 page: A4 dengan margins minimal, scale to fit
-  formData.append("paperWidth", "8.27")  // A4 width in inches
-  formData.append("paperHeight", "11.69") // A4 height in inches
-  formData.append("marginTop", "0.3")
-  formData.append("marginBottom", "0.3")
-  formData.append("marginLeft", "0.3")
-  formData.append("marginRight", "0.3")
-  formData.append("scale", "1")
-
   const response = await fetch(`${gotenbergUrl}/forms/libreoffice/convert`, {
     method: "POST",
     body: formData,
   })
 
   if (!response.ok) {
-    throw new Error(`Gotenberg error: ${response.status} ${response.statusText}`)
+    const errText = await response.text()
+    throw new Error(`Gotenberg error: ${response.status} - ${errText}`)
   }
 
   return Buffer.from(await response.arrayBuffer())
@@ -62,6 +55,16 @@ export async function convertDocxToPdfViaGotenberg(docxBuffer: Buffer): Promise<
 export async function generateSumpahPdf(data: SumpahData): Promise<Buffer> {
   const docxBuffer = await generateSumpahDocx(data)
   const pdfBuffer = await convertDocxToPdfViaGotenberg(docxBuffer)
+
+  // Paksa 1 halaman: buang halaman ke-2 dst.
+  const pdfCheck = await PDFDocument.load(pdfBuffer)
+  if (pdfCheck.getPageCount() > 1) {
+    const singleDoc = await PDFDocument.create()
+    const [firstPage] = await singleDoc.copyPages(pdfCheck, [0])
+    singleDoc.addPage(firstPage)
+    return Buffer.from(await singleDoc.save())
+  }
+
   return pdfBuffer
 }
 
