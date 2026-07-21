@@ -38,6 +38,15 @@ export async function convertDocxToPdfViaGotenberg(docxBuffer: Buffer): Promise<
   const blob = new Blob([new Uint8Array(docxBuffer)], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" })
   formData.append("files", blob, "document.docx")
 
+  // Force 1 page: A4 dengan margins minimal, scale to fit
+  formData.append("paperWidth", "8.27")  // A4 width in inches
+  formData.append("paperHeight", "11.69") // A4 height in inches
+  formData.append("marginTop", "0.3")
+  formData.append("marginBottom", "0.3")
+  formData.append("marginLeft", "0.3")
+  formData.append("marginRight", "0.3")
+  formData.append("scale", "1")
+
   const response = await fetch(`${gotenbergUrl}/forms/libreoffice/convert`, {
     method: "POST",
     body: formData,
