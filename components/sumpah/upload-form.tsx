@@ -28,6 +28,7 @@ export function SumpahUploadForm() {
       const response = await fetch("/qr-signer/api/generate-sumpah", {
         method: "POST",
         body: formData,
+        credentials: "include",
       })
 
       if (!response.ok) {
