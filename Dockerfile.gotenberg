@@ -2,12 +2,16 @@ FROM gotenberg/gotenberg:8
 
 USER root
 
-RUN mkdir -p /usr/share/fonts/truetype/bookman
+RUN mkdir -p /usr/share/fonts/truetype/bookman /usr/share/fonts/truetype/tahoma
 
 COPY fonts/BOOKOS.TTF /usr/share/fonts/truetype/bookman/
 COPY fonts/BOOKOSB.TTF /usr/share/fonts/truetype/bookman/
 COPY fonts/BOOKOSI.TTF /usr/share/fonts/truetype/bookman/
 COPY fonts/BOOKOSBI.TTF /usr/share/fonts/truetype/bookman/
+
+# Tahoma dipakai template Berita Acara Sumpah.
+COPY fonts/tahoma.ttf /usr/share/fonts/truetype/tahoma/
+COPY fonts/tahomabd.ttf /usr/share/fonts/truetype/tahoma/
 
 RUN fc-cache -f -v
 
