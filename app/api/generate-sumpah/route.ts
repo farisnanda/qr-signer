@@ -35,6 +35,19 @@ export async function POST(request: Request) {
   let errorCount = 0
   const documents: Array<{ namaFile: string; status: string; errorMessage?: string }> = []
 
+  // Create batch record FIRST before processing rows
+  await prisma.signBatch.create({
+    data: {
+      id: batchId,
+      batchCode,
+      jenisSk: "SUMPAH",
+      total: rows.length,
+      successCount: 0,
+      errorCount: 0,
+      signedBy: session.user.email!,
+    },
+  })
+
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
@@ -102,15 +115,12 @@ export async function POST(request: Request) {
           }
         }
 
-        await prisma.signBatch.create({
+        // Update batch with final counts
+        await prisma.signBatch.update({
+          where: { id: batchId },
           data: {
-            id: batchId,
-            batchCode,
-            jenisSk: "SUMPAH",
-            total: rows.length,
             successCount,
             errorCount,
-            signedBy: session.user.email!,
           },
         })
 
