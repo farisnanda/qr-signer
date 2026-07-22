@@ -40,6 +40,19 @@ export async function POST(request: Request) {
   const token = randomBytes(32).toString("hex")
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
+  // Kirim email DULU; kalau gagal, JANGAN ubah DB — hindari akun "setengah jadi"
+  // (email/token terpasang tapi peserta tak pernah menerima link).
+  let mail
+  try {
+    mail = await sendVerificationEmail(email, peserta.nama, token)
+  } catch (err: any) {
+    console.error("[aktivasi] gagal kirim email:", err?.message)
+    return Response.json(
+      { error: "Gagal mengirim email verifikasi. Periksa alamat email lalu coba lagi." },
+      { status: 502 }
+    )
+  }
+
   await prisma.peserta.update({
     where: { nip },
     data: {
@@ -50,8 +63,6 @@ export async function POST(request: Request) {
       verifyExpires: expires,
     },
   })
-
-  const mail = await sendVerificationEmail(email, peserta.nama, token)
 
   // devLink hanya di non-production, agar link verifikasi tak pernah bocor di prod.
   const devLink = process.env.NODE_ENV !== "production" && !mail.sent ? mail.link : undefined
