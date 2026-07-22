@@ -41,6 +41,31 @@ model Peserta {
   updatedAt       DateTime  @updatedAt
 }
 
+/// Sesi pengambilan sumpah dgn PIN. Panitia buat sesi + PIN, dibagikan ke
+/// peserta yg hadir fisik. PIN = gerbang absensi saat generate dokumen.
+model Sesi {
+  id        String      @id @default(cuid())
+  nama      String
+  pin       String
+  aktif     Boolean     @default(true)
+  createdBy String
+  createdAt DateTime    @default(now())
+  kehadiran Kehadiran[]
+}
+
+/// Catatan kehadiran: peserta yg sudah absen (via PIN) & generate dokumen.
+model Kehadiran {
+  id          String   @id @default(cuid())
+  sesiId      String
+  sesi        Sesi     @relation(fields: [sesiId], references: [id], onDelete: Cascade)
+  pesertaNip  String
+  pesertaNama String
+  dokumenKey  String?
+  checkedInAt DateTime @default(now())
+
+  @@unique([sesiId, pesertaNip])
+}
+
 model SignBatch {
   id             String    @id @default(cuid())
   batchCode      String    @unique
