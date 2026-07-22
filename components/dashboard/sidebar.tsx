@@ -32,7 +32,7 @@ export function Sidebar({ serverSession }: Props) {
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard, show: true, match: (p) => p === "/admin" },
     { href: "/admin/bulk-sign", label: "Bulk Sign", icon: Upload, show: isSekretariat, match: (p) => p.startsWith("/admin/bulk-sign") && !p.startsWith("/admin/bulk-sign-sk") },
     { href: "/admin/bulk-sign-sk", label: "Bulk Sign SK", icon: PenSquare, show: isSekretariat },
-    { href: "/admin/berita-acara-sumpah", label: "Berita Acara Sumpah", icon: FileText, show: isSekretariat },
+    { href: "/admin/berita-acara-sumpah", label: "Berita Acara Sumpah", icon: FileText, show: true },
     { href: "/admin/riwayat-sign", label: "Riwayat Sign", icon: History, show: isSekretariat },
     { href: "/admin/users", label: "Manage User", icon: Users, show: role === "SUPERADMIN" },
   ]
