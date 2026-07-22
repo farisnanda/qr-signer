@@ -15,6 +15,10 @@ export async function POST(request: Request) {
 
   const formData = await request.formData()
   const file = formData.get("file") as File
+  // dateStr: DDMMYYYY untuk penamaan file (fallback ke hari ini di getSumpahFilename)
+  const dateStr = (formData.get("dateStr") as string) || ""
+  // singlePage default true (samakan dengan bulk-sign-sk)
+  const singlePage = formData.get("singlePage") !== "false"
 
   if (!file) {
     return Response.json({ error: "No file provided" }, { status: 400 })
@@ -70,14 +74,12 @@ export async function POST(request: Request) {
 
           try {
             const jabatan = getJabatan(pangkat)
-            const pdfBuffer = await generateSumpahPdf({
-              nama,
-              nip,
-              jabatan,
-              agama,
-            })
+            const pdfBuffer = await generateSumpahPdf(
+              { nama, nip, jabatan, agama },
+              { singlePage }
+            )
 
-            const filename = getSumpahFilename(nip)
+            const filename = getSumpahFilename(nip, dateStr)
             await uploadToMinio("sumpah", filename, pdfBuffer)
 
             await prisma.signLog.create({

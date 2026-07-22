@@ -2,10 +2,19 @@
 
 import { useState } from "react"
 
+/** Tanggal hari ini sebagai YYYY-MM-DD (waktu lokal) untuk nilai default input date. */
+function todayInput(): string {
+  const d = new Date()
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
 export function SumpahUploadForm() {
   const [file, setFile] = useState<File | null>(null)
+  const [tanggal, setTanggal] = useState(todayInput())
+  const [singlePage, setSinglePage] = useState(true)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [total, setTotal] = useState(0)
   const [result, setResult] = useState<{ successCount: number; errorCount: number; total: number } | null>(null)
   const [error, setError] = useState("")
 
@@ -15,14 +24,22 @@ export function SumpahUploadForm() {
       setError("Pilih file Excel terlebih dahulu")
       return
     }
+    if (!tanggal) {
+      setError("Pilih tanggal terlebih dahulu")
+      return
+    }
 
     setLoading(true)
     setError("")
     setProgress(0)
+    setTotal(0)
     setResult(null)
 
     const formData = new FormData()
     formData.append("file", file)
+    // YYYY-MM-DD -> DDMMYYYY untuk penamaan file
+    formData.append("dateStr", tanggal.split("-").reverse().join(""))
+    formData.append("singlePage", String(singlePage))
 
     try {
       const response = await fetch("/qr-signer/api/generate-sumpah", {
@@ -56,6 +73,7 @@ export function SumpahUploadForm() {
               const data = JSON.parse(jsonStr)
               if (data.type === "progress") {
                 setProgress(data.processed)
+                if (data.total) setTotal(data.total)
                 if (data.error) setError(data.error)
               } else if (data.type === "complete") {
                 setResult({
@@ -100,6 +118,36 @@ export function SumpahUploadForm() {
             </label>
           </div>
 
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Tanggal <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              value={tanggal}
+              onChange={(e) => setTanggal(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Dipakai untuk penamaan file: SUMPAH_PNS_
+              <span className="font-mono">{tanggal ? tanggal.split("-").reverse().join("") : "DDMMYYYY"}</span>_[NIP].pdf
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <input
+              type="checkbox"
+              id="singlePage"
+              checked={singlePage}
+              onChange={(e) => setSinglePage(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+            />
+            <label htmlFor="singlePage" className="flex-1 text-sm font-medium text-slate-700 cursor-pointer">
+              Paksa output 1 halaman
+            </label>
+            <span className="text-xs text-slate-400">{singlePage ? "Hal ke-2+ dihapus" : "Semua halaman"}</span>
+          </div>
+
           {error && (
             <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
               {error}
@@ -110,10 +158,10 @@ export function SumpahUploadForm() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Progress</span>
-                <span className="font-medium text-slate-900">{progress}</span>
+                <span className="font-medium text-slate-900">{progress}{total ? ` / ${total}` : ""}</span>
               </div>
               <div className="h-2 w-full rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${Math.min((progress / 0) * 100, 100)}%` }} />
+                <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${total ? Math.min((progress / total) * 100, 100) : 0}%` }} />
               </div>
             </div>
           )}

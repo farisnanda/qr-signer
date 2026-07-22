@@ -52,25 +52,41 @@ export async function convertDocxToPdfViaGotenberg(docxBuffer: Buffer): Promise<
   return Buffer.from(await response.arrayBuffer())
 }
 
-export async function generateSumpahPdf(data: SumpahData): Promise<Buffer> {
+export async function generateSumpahPdf(
+  data: SumpahData,
+  opts: { singlePage?: boolean } = {}
+): Promise<Buffer> {
+  const { singlePage = true } = opts
   const docxBuffer = await generateSumpahDocx(data)
   const pdfBuffer = await convertDocxToPdfViaGotenberg(docxBuffer)
 
-  // Paksa 1 halaman: buang halaman ke-2 dst.
-  const pdfCheck = await PDFDocument.load(pdfBuffer)
-  if (pdfCheck.getPageCount() > 1) {
-    const singleDoc = await PDFDocument.create()
-    const [firstPage] = await singleDoc.copyPages(pdfCheck, [0])
-    singleDoc.addPage(firstPage)
-    return Buffer.from(await singleDoc.save())
+  // Paksa 1 halaman (opsional): buang halaman ke-2 dst.
+  if (singlePage) {
+    const pdfCheck = await PDFDocument.load(pdfBuffer)
+    if (pdfCheck.getPageCount() > 1) {
+      const singleDoc = await PDFDocument.create()
+      const [firstPage] = await singleDoc.copyPages(pdfCheck, [0])
+      singleDoc.addPage(firstPage)
+      return Buffer.from(await singleDoc.save())
+    }
   }
 
   return pdfBuffer
 }
 
-export function getSumpahFilename(nip: string, date: Date = new Date()): string {
-  const dd = String(date.getDate()).padStart(2, "0")
-  const mm = String(date.getMonth() + 1).padStart(2, "0")
-  const yyyy = date.getFullYear()
-  return `SUMPAH_PNS_${dd}${mm}${yyyy}_${nip}.pdf`
+/** Format tanggal hari ini sebagai DDMMYYYY (waktu lokal). */
+export function todayDDMMYYYY(): string {
+  const d = new Date()
+  const dd = String(d.getDate()).padStart(2, "0")
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  return `${dd}${mm}${d.getFullYear()}`
+}
+
+/**
+ * Nama file: SUMPAH_PNS_<DDMMYYYY>_<NIP>.pdf
+ * @param dateStr tanggal 8 digit DDMMYYYY; kalau kosong/invalid pakai hari ini.
+ */
+export function getSumpahFilename(nip: string, dateStr?: string): string {
+  const ddmmyyyy = dateStr && /^\d{8}$/.test(dateStr) ? dateStr : todayDDMMYYYY()
+  return `SUMPAH_PNS_${ddmmyyyy}_${nip}.pdf`
 }
