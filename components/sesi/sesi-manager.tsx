@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 type Sesi = {
   id: string
@@ -96,7 +97,9 @@ export function SesiManager({ initial }: { initial: Sesi[] }) {
             ) : (
               initial.map((s) => (
                 <tr key={s.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-900">{s.nama}</td>
+                  <td className="px-4 py-3">
+                    <Link href={`/admin/sesi/${s.id}`} className="font-medium text-blue-600 hover:underline">{s.nama}</Link>
+                  </td>
                   <td className="px-4 py-3">
                     <span className="rounded-lg bg-slate-100 px-3 py-1 font-mono text-base font-bold tracking-widest text-slate-800">{s.pin}</span>
                   </td>
