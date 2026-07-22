@@ -20,6 +20,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const pin = String(body.pin || "").trim()
+  const preview = body.preview === true
   const place = {
     xFrac: typeof body.xFrac === "number" ? body.xFrac : DEFAULT_PLACE.xFrac,
     yFracTop: typeof body.yFracTop === "number" ? body.yFracTop : DEFAULT_PLACE.yFracTop,
@@ -50,6 +51,14 @@ export async function POST(request: Request) {
   try {
     // 1. Generate BA (substitusi nama/nip/jabatan, paksa 1 halaman)
     const basePdf = await generateSumpahPdf({ nama: peserta.nama, nip, jabatan, agama }, { singlePage: true })
+
+    // Mode preview: kembalikan BA dasar (tanpa TTD, tanpa simpan/catat) untuk
+    // ditata posisinya di client.
+    if (preview) {
+      return new Response(new Uint8Array(basePdf), {
+        headers: { "Content-Type": "application/pdf", "Cache-Control": "no-store" },
+      })
+    }
 
     // 2. Ambil PNG tanda tangan dari Minio
     const [sigBucket, ...sigRest] = peserta.signatureKey.split("/")
