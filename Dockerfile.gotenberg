@@ -2,7 +2,7 @@ FROM gotenberg/gotenberg:8
 
 USER root
 
-RUN mkdir -p /usr/share/fonts/truetype/bookman /usr/share/fonts/truetype/tahoma
+RUN mkdir -p /usr/share/fonts/truetype/bookman /usr/share/fonts/truetype/tahoma /usr/share/fonts/truetype/arial
 
 COPY fonts/BOOKOS.TTF /usr/share/fonts/truetype/bookman/
 COPY fonts/BOOKOSB.TTF /usr/share/fonts/truetype/bookman/
@@ -12,6 +12,13 @@ COPY fonts/BOOKOSBI.TTF /usr/share/fonts/truetype/bookman/
 # Tahoma dipakai template Berita Acara Sumpah.
 COPY fonts/tahoma.ttf /usr/share/fonts/truetype/tahoma/
 COPY fonts/tahomabd.ttf /usr/share/fonts/truetype/tahoma/
+
+# Arial (Regular/Bold/Italic/Bold Italic) untuk template Berita Acara Sumpah.
+# Keempat varian dipasang agar tidak ada kemiringan sintetis pada teks italic.
+COPY fonts/arial.ttf /usr/share/fonts/truetype/arial/
+COPY fonts/arialbd.ttf /usr/share/fonts/truetype/arial/
+COPY fonts/ariali.ttf /usr/share/fonts/truetype/arial/
+COPY fonts/arialbi.ttf /usr/share/fonts/truetype/arial/
 
 RUN fc-cache -f -v
 
