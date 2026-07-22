@@ -3,8 +3,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { PesertaLogout } from "@/components/peserta/logout-button"
-import { SignaturePad } from "@/components/peserta/signature-pad"
-import { GenerateBerita } from "@/components/peserta/generate-berita"
+import { PesertaWorkspace } from "@/components/peserta/workspace"
 
 export const dynamic = "force-dynamic"
 
@@ -47,17 +46,7 @@ export default async function PesertaHome() {
         ))}
       </dl>
 
-      <div className="mt-6 border-t border-slate-100 pt-5">
-        <h3 className="mb-1 text-sm font-bold text-slate-900">Tanda Tangan</h3>
-        <p className="mb-3 text-xs text-slate-500">Gambar tanda tangan Anda. Nanti dipakai pada Berita Acara.</p>
-        <SignaturePad initialUrl={signatureUrl} />
-      </div>
-
-      <div className="mt-6 border-t border-slate-100 pt-5">
-        <h3 className="mb-1 text-sm font-bold text-slate-900">Berita Acara Sumpah</h3>
-        <p className="mb-3 text-xs text-slate-500">Masukkan PIN dari panitia, atur posisi tanda tangan, lalu simpan.</p>
-        <GenerateBerita hasSignature={!!peserta.signatureKey} />
-      </div>
+      <PesertaWorkspace initialSignatureUrl={signatureUrl} initialHasSignature={!!peserta.signatureKey} />
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react"
  * transparan, garis hitam. Saat simpan: crop ke bounding box goresan agar PNG
  * rapat, lalu POST ke /api/peserta/signature.
  */
-export function SignaturePad({ initialUrl }: { initialUrl?: string | null }) {
+export function SignaturePad({ initialUrl, onSaved }: { initialUrl?: string | null; onSaved?: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
   const last = useRef<{ x: number; y: number } | null>(null)
@@ -132,6 +132,7 @@ export function SignaturePad({ initialUrl }: { initialUrl?: string | null }) {
       setSavedUrl(`/qr-signer/api/peserta/signature?t=${Date.now()}`)
       setMessage("Tanda tangan tersimpan.")
       dirty.current = false
+      onSaved?.()
     } catch {
       setError("Terjadi kesalahan koneksi.")
     } finally {
