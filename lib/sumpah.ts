@@ -10,6 +10,25 @@ interface SumpahData {
   agama: "Islam" | "Kristen" | "Budha" | "Hindu" | "Katolik"
 }
 
+/**
+ * Isi placeholder dengan tahan terhadap pemecahan run oleh Word. Word sering
+ * memecah `{nama_diambil_sumpah}` jadi run terpisah `{` + `nama_diambil_sumpah`
+ * + `}`, sehingga string lengkapnya tak kontigu di XML. Kita proses per <w:t>:
+ * ganti key (kontigu maupun telanjang), lalu buang kurawal yatim (run yang
+ * isinya hanya kurawal + spasi) — aman karena template tak memakai `{ }` untuk
+ * hal lain.
+ */
+function fillPlaceholders(xml: string, map: Record<string, string>): string {
+  return xml.replace(/(<w:t[^>]*>)([^<]*)(<\/w:t>)/g, (_full, open, text, close) => {
+    let t: string = text
+    for (const [key, val] of Object.entries(map)) {
+      t = t.split(`{${key}}`).join(val).split(key).join(val)
+    }
+    if (/^[\s{}]*$/.test(t)) t = t.replace(/[{}]/g, "")
+    return open + t + close
+  })
+}
+
 export async function generateSumpahDocx(data: SumpahData): Promise<Buffer> {
   const templateDir = join(process.cwd(), "templates/CEK")
   const templatePath = join(templateDir, `${data.agama}.docx`)
@@ -22,10 +41,11 @@ export async function generateSumpahDocx(data: SumpahData): Promise<Buffer> {
     throw new Error("Failed to extract document.xml from template")
   }
 
-  let replacedXml = xmlString
-    .replace(/{nama_diambil_sumpah}/g, data.nama)
-    .replace(/{nip_diambil_sumpah}/g, data.nip)
-    .replace(/{pangkat_diambil_sumpah}/g, data.jabatan)
+  const replacedXml = fillPlaceholders(xmlString, {
+    nama_diambil_sumpah: data.nama,
+    nip_diambil_sumpah: data.nip,
+    pangkat_diambil_sumpah: data.jabatan,
+  })
 
   zip.file("word/document.xml", replacedXml)
 
