@@ -1,14 +1,23 @@
 import nodemailer from "nodemailer"
 
 /**
- * Pengiriman email via Gmail SMTP (app password).
- * Env: SMTP_USER, SMTP_PASS (app password Gmail dengan 2FA aktif).
+ * Pengiriman email via SMTP (default: Resend — smtp.resend.com).
+ * Env:
+ *   SMTP_PASS  = API key Resend (re_...). WAJIB agar email benar-benar terkirim.
+ *   SMTP_HOST  = default "smtp.resend.com"
+ *   SMTP_PORT  = default 465
+ *   SMTP_USER  = default "resend"
+ *   MAIL_FROM  = alamat pengirim, HARUS domain/sender terverifikasi di Resend
+ *                (mis. "SIGNER BKD <noreply@domainanda>"; default onboarding@resend.dev untuk tes)
  *
- * Kalau SMTP belum diset (mis. dev lokal), email TIDAK dikirim — isinya di-log
- * ke console server supaya alur verifikasi tetap bisa diuji tanpa kredensial.
+ * Kalau SMTP_PASS belum diset (mis. dev lokal), email TIDAK dikirim — isinya
+ * di-log ke console server supaya alur verifikasi tetap bisa diuji.
  */
-const SMTP_USER = process.env.SMTP_USER
+const SMTP_HOST = process.env.SMTP_HOST || "smtp.resend.com"
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465")
+const SMTP_USER = process.env.SMTP_USER || "resend"
 const SMTP_PASS = process.env.SMTP_PASS
+const MAIL_FROM = process.env.MAIL_FROM || "SIGNER BKD Jatim <onboarding@resend.dev>"
 
 // Base URL publik termasuk basePath. Di produksi NEXTAUTH_URL sudah memuat /qr-signer.
 const APP_URL = (process.env.APP_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3100/qr-signer").replace(/\/$/, "")
@@ -16,10 +25,12 @@ const APP_URL = (process.env.APP_BASE_URL || process.env.NEXTAUTH_URL || "http:/
 let transporter: nodemailer.Transporter | null = null
 
 function getTransporter(): nodemailer.Transporter | null {
-  if (!SMTP_USER || !SMTP_PASS) return null
+  if (!SMTP_PASS) return null
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
       auth: { user: SMTP_USER, pass: SMTP_PASS },
     })
   }
@@ -36,7 +47,7 @@ async function sendMail(to: string, subject: string, html: string, link: string)
     console.log(`[MAIL:DEV] Link    : ${link}\n`)
     return { sent: false, link }
   }
-  await t.sendMail({ from: `SIGNER BKD Jatim <${SMTP_USER}>`, to, subject, html })
+  await t.sendMail({ from: MAIL_FROM, to, subject, html })
   return { sent: true, link }
 }
 
