@@ -52,6 +52,38 @@ export const authOptions = {
         }
       },
     }),
+    // Login peserta: identifikasi via NIP, tanpa 2FA. Hanya boleh setelah
+    // email terverifikasi.
+    CredentialsProvider({
+      id: "peserta",
+      name: "peserta",
+      credentials: {
+        nip: {},
+        password: {},
+      },
+      async authorize(credentials: any) {
+        if (!credentials?.nip || !credentials?.password) return null
+
+        const peserta = await prisma.peserta.findUnique({
+          where: { nip: String(credentials.nip).trim() },
+        })
+        if (!peserta || !peserta.password) return null
+
+        if (!peserta.emailVerified) {
+          throw new Error("BELUM_VERIFIKASI")
+        }
+
+        const ok = await bcrypt.compare(credentials.password, peserta.password)
+        if (!ok) return null
+
+        return {
+          id: peserta.id,
+          name: peserta.nama,
+          nip: peserta.nip,
+          kind: "peserta",
+        } as any
+      },
+    }),
   ],
 
   session: {
@@ -69,10 +101,16 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user, account }: any) {
       if (user) {
-        token.role = user.role
-        token.bidang = user.bidang
-        token.twoFactorEnabled = user.twoFactorEnabled
-        token.twoFactorVerified = true
+        if (user.kind === "peserta") {
+          token.kind = "peserta"
+          token.nip = user.nip
+          token.pesertaId = user.id
+        } else {
+          token.role = user.role
+          token.bidang = user.bidang
+          token.twoFactorEnabled = user.twoFactorEnabled
+          token.twoFactorVerified = true
+        }
       }
 
       if (account?.provider === "google") {
@@ -92,7 +130,7 @@ export const authOptions = {
         }
       }
 
-      if (!token.role && token.sub) {
+      if (token.kind !== "peserta" && !token.role && token.sub) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.sub },
           select: { role: true, bidang: true, twoFactorEnabled: true },
@@ -109,11 +147,13 @@ export const authOptions = {
 
     async session({ session, token }: any) {
       if (session.user) {
-        session.user.id = token.sub || token.id
+        session.user.id = token.sub || token.id || token.pesertaId
         session.user.role = token.role
         session.user.bidang = token.bidang
         session.user.twoFactorEnabled = token.twoFactorEnabled
         session.user.twoFactorVerified = token.twoFactorVerified
+        session.user.kind = token.kind
+        session.user.nip = token.nip
       }
       return session
     },
