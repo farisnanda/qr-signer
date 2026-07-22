@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { PesertaLogout } from "@/components/peserta/logout-button"
+import { SignaturePad } from "@/components/peserta/signature-pad"
 
 export const dynamic = "force-dynamic"
 
@@ -13,9 +14,12 @@ export default async function PesertaHome() {
 
   const peserta = await prisma.peserta.findUnique({
     where: { nip },
-    select: { nama: true, nip: true, pangkat: true, perangkatDaerah: true, agama: true, email: true },
+    select: { nama: true, nip: true, pangkat: true, perangkatDaerah: true, agama: true, email: true, signatureKey: true },
   })
   if (!peserta) redirect("/peserta/login")
+
+  // Gambar TTD dilayani via proxy same-origin (hindari isu cert/CORS Minio).
+  const signatureUrl = peserta.signatureKey ? `/qr-signer/api/peserta/signature?t=${Date.now()}` : null
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -42,8 +46,14 @@ export default async function PesertaHome() {
         ))}
       </dl>
 
+      <div className="mt-6 border-t border-slate-100 pt-5">
+        <h3 className="mb-1 text-sm font-bold text-slate-900">Tanda Tangan</h3>
+        <p className="mb-3 text-xs text-slate-500">Gambar tanda tangan Anda. Nanti dipakai pada Berita Acara.</p>
+        <SignaturePad initialUrl={signatureUrl} />
+      </div>
+
       <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm text-slate-400">
-        Tanda tangan & generate Berita Acara akan tersedia di tahap berikutnya.
+        Generate Berita Acara (dengan PIN sesi) tersedia di tahap berikutnya.
       </div>
     </div>
   )
