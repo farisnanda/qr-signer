@@ -2,10 +2,13 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { uploadToMinio, downloadFromMinio } from "@/lib/minio"
-import { generateSumpahPdf, stampSignatureOnPdf } from "@/lib/sumpah"
+import { generateSumpahPdf, stampSignatureOnPdf, getSumpahFilename } from "@/lib/sumpah"
 import { getJabatan } from "@/lib/pangkat"
 
-const BUCKET = "berita-acara"
+// Simpan ke bucket "bkd" path "sk_pns/". Tanggal penamaan FIX 01012026.
+const BUCKET = "bkd"
+const PREFIX = "sk_pns"
+const FIXED_DATE = "01012026"
 
 // Posisi default TTD (fraksi halaman) — kolom "Yang mengangkat sumpah" kiri.
 // Bisa ditimpa client di Fase 3c (preview + geser).
@@ -67,8 +70,8 @@ export async function POST(request: Request) {
     // 3. Stamp TTD ke PDF
     const finalPdf = await stampSignatureOnPdf(basePdf, sigPng, place)
 
-    // 4. Simpan ke Minio
-    const objectName = `BA_SUMPAH_${nip}.pdf`
+    // 4. Simpan ke Minio: bkd/sk_pns/SUMPAH_PNS_01012026_<NIP>.pdf
+    const objectName = `${PREFIX}/${getSumpahFilename(nip, FIXED_DATE)}`
     await uploadToMinio(BUCKET, objectName, finalPdf)
 
     // 5. Catat kehadiran (upsert)
