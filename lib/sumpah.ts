@@ -86,6 +86,34 @@ export function todayDDMMYYYY(): string {
  * Nama file: SUMPAH_PNS_<DDMMYYYY>_<NIP>.pdf
  * @param dateStr tanggal 8 digit DDMMYYYY; kalau kosong/invalid pakai hari ini.
  */
+/**
+ * Tempel gambar (PNG tanda tangan) ke PDF. Posisi & lebar dalam FRAKSI ukuran
+ * halaman (0..1) agar resolusi-independen; tinggi mengikuti rasio gambar.
+ * yFracTop diukur dari ATAS halaman (koordinat UI); pdf-lib pakai origin
+ * kiri-bawah sehingga di-flip.
+ */
+export async function stampSignatureOnPdf(
+  pdfBuffer: Buffer,
+  pngBuffer: Buffer,
+  place: { xFrac: number; yFracTop: number; wFrac: number },
+  pageNumber = 1
+): Promise<Buffer> {
+  const pdfDoc = await PDFDocument.load(pdfBuffer)
+  const pages = pdfDoc.getPages()
+  const page = pages[(pageNumber || 1) - 1] || pages[0]
+  const pageW = page.getWidth()
+  const pageH = page.getHeight()
+
+  const png = await pdfDoc.embedPng(new Uint8Array(pngBuffer))
+  const wPt = place.wFrac * pageW
+  const hPt = wPt * (png.height / png.width)
+  const xPt = place.xFrac * pageW
+  const yPt = pageH - place.yFracTop * pageH - hPt
+
+  page.drawImage(png, { x: xPt, y: yPt, width: wPt, height: hPt })
+  return Buffer.from(await pdfDoc.save())
+}
+
 export function getSumpahFilename(nip: string, dateStr?: string): string {
   const ddmmyyyy = dateStr && /^\d{8}$/.test(dateStr) ? dateStr : todayDDMMYYYY()
   return `SUMPAH_PNS_${ddmmyyyy}_${nip}.pdf`
