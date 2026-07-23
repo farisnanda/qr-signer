@@ -8,7 +8,7 @@ import { getJabatan } from "@/lib/pangkat"
 // Simpan ke bucket "bkd" path "sk_pns/". Tanggal penamaan FIX 01012026.
 const BUCKET = "bkd"
 const PREFIX = "sk_pns"
-const FIXED_DATE = "01012026"
+const FIXED_DATE = "01062026"
 
 // Posisi default TTD (fraksi halaman) — kolom "Yang mengangkat sumpah" kiri.
 // Bisa ditimpa client di Fase 3c (preview + geser).
