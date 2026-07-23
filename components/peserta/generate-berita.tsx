@@ -146,6 +146,32 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
     setError("")
   }
 
+  // Geser halus (presisi) — melengkapi drag yang kasar di preview kecil.
+  function nudge(dx: number, dy: number) {
+    setBox((b) => ({
+      ...b,
+      x: Math.max(0, Math.min(renderWidth - b.width, b.x + dx)),
+      y: Math.max(0, Math.min(canvasHeight - b.height, b.y + dy)),
+    }))
+  }
+
+  // Ubah ukuran (jaga rasio TTD), tetap dalam batas halaman.
+  function resizeBox(delta: number) {
+    setBox((b) => {
+      const width = Math.max(30, Math.min(renderWidth, b.width + delta))
+      const height = width * sigRatio.current
+      return {
+        width,
+        height,
+        x: Math.max(0, Math.min(renderWidth - width, b.x)),
+        y: Math.max(0, Math.min(canvasHeight - height, b.y)),
+      }
+    })
+  }
+
+  // Langkah geser/ukuran proporsional terhadap lebar render.
+  const step = Math.max(2, Math.round(renderWidth * 0.012))
+
   if (!hasSignature) {
     return (
       <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-center text-sm text-amber-700">
@@ -178,7 +204,7 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
 
       {stage === "place" && (
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">Geser & atur ukuran tanda tangan ke posisi yang tepat, lalu finalisasi.</p>
+          <p className="text-sm text-slate-600">Seret tanda tangan ke posisi yang tepat. Untuk presisi, gunakan tombol geser & ukuran di bawah preview.</p>
           <div ref={wrapRef} className="w-full overflow-hidden">
             <div className="relative mx-auto" style={{ width: renderWidth, height: canvasHeight || 400 }}>
               <canvas ref={canvasRef} className="w-full rounded-lg border border-slate-200" />
@@ -200,6 +226,34 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
               )}
             </div>
           </div>
+
+          {/* Kontrol presisi: geser halus & ubah ukuran */}
+          {canvasHeight > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-4 rounded-xl bg-slate-50 p-3">
+              <div className="flex items-center gap-1.5">
+                <span className="mr-1 text-xs font-medium text-slate-500">Geser</span>
+                {[
+                  { l: "←", dx: -step, dy: 0 },
+                  { l: "↑", dx: 0, dy: -step },
+                  { l: "↓", dx: 0, dy: step },
+                  { l: "→", dx: step, dy: 0 },
+                ].map((b) => (
+                  <button key={b.l} type="button" onClick={() => nudge(b.dx, b.dy)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-base leading-none text-slate-700 transition hover:bg-slate-100">
+                    {b.l}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="mr-1 text-xs font-medium text-slate-500">Ukuran</span>
+                <button type="button" onClick={() => resizeBox(-step * 2)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-lg leading-none text-slate-700 transition hover:bg-slate-100">−</button>
+                <button type="button" onClick={() => resizeBox(step * 2)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-lg leading-none text-slate-700 transition hover:bg-slate-100">+</button>
+              </div>
+            </div>
+          )}
+
           {error && <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
           <div className="flex gap-2">
             <button onClick={ulang} type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
