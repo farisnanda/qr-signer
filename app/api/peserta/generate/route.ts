@@ -12,7 +12,7 @@ const FIXED_DATE = "01062026"
 
 // Posisi default TTD (fraksi halaman) — kolom "Yang mengangkat sumpah" kiri.
 // Bisa ditimpa client di Fase 3c (preview + geser).
-const DEFAULT_PLACE = { xFrac: 0.12, yFracTop: 0.7, wFrac: 0.15 }
+const DEFAULT_PLACE = { xFrac: 0.16, yFracTop: 0.72, wFrac: 0.15 }
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)

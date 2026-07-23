@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react"
 import { Rnd } from "react-rnd"
 
 const MAX_WIDTH = 600
+// Posisi & ukuran default kotak TTD (fraksi halaman) — dikalibrasi tepat di
+// kolom "Yang mengangkat sumpah", di atas nama peserta.
+const DEFAULT_PLACE = { xFrac: 0.16, yFracTop: 0.72, wFrac: 0.15 }
 const PDF_JS = "https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.mjs"
 const PDF_WORKER = "https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs"
 
@@ -57,22 +60,22 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
         const buf = await previewBlob.arrayBuffer()
         const pdf = await pdfjs.getDocument({ data: buf }).promise
         const page = await pdf.getPage(1)
+        if (cancelled) return
         // Lebar render mengikuti lebar kontainer (maks MAX_WIDTH) agar PDF muat
         // penuh tanpa perlu geser samping. Koordinat TTD tetap fraksional.
         const rw = Math.min(wrapRef.current?.clientWidth || MAX_WIDTH, MAX_WIDTH)
-        setRenderWidth(rw)
         const scale = rw / page.getViewport({ scale: 1 }).width
         const vp = page.getViewport({ scale })
         const canvas = canvasRef.current
         if (!canvas || cancelled) return
         canvas.width = vp.width
         canvas.height = vp.height
+        // Set renderWidth & box BERSAMAAN setelah cek cancelled, agar keduanya
+        // pakai rw yang sama (hindari race dev strict-mode -> posisi meleset).
+        setRenderWidth(rw)
         setCanvasHeight(vp.height)
-        // Posisi default TTD di kolom "Yang mengangkat sumpah".
-        // Lebar default dibuat kecil (0.15) agar pas di atas nama, tidak
-        // menabrak area saksi di bawahnya.
-        const w = 0.15 * rw
-        setBox({ x: 0.12 * rw, y: 0.7 * vp.height, width: w, height: w * sigRatio.current })
+        const w = DEFAULT_PLACE.wFrac * rw
+        setBox({ x: DEFAULT_PLACE.xFrac * rw, y: DEFAULT_PLACE.yFracTop * vp.height, width: w, height: w * sigRatio.current })
         await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp, canvas }).promise
       } catch (e: any) {
         if (!cancelled) setError(e?.message || "Gagal menampilkan preview")
