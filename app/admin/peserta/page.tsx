@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma"
+import Link from "next/link"
 import { PesertaImportForm } from "@/components/peserta/import-form"
+import { PesertaSearch } from "@/components/peserta/peserta-search"
 
 export const dynamic = "force-dynamic"
+
+const PER_PAGE = 25
 
 function statusBadge(p: { email: string | null; emailVerified: boolean }) {
   if (!p.email) return { label: "Belum aktivasi", cls: "bg-slate-100 text-slate-600" }
@@ -9,16 +13,52 @@ function statusBadge(p: { email: string | null; emailVerified: boolean }) {
   return { label: "Aktif", cls: "bg-green-100 text-green-700" }
 }
 
-export default async function PesertaPage() {
+export default async function PesertaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
+  const sp = await searchParams
+  const q = (sp.q || "").trim()
+
+  // Filter pencarian (NIP / nama / perangkat daerah), case-insensitive.
+  const where = q
+    ? {
+        OR: [
+          { nip: { contains: q, mode: "insensitive" as const } },
+          { nama: { contains: q, mode: "insensitive" as const } },
+          { perangkatDaerah: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
+    : {}
+
+  const [total, aktif, pending, belum, matching] = await Promise.all([
+    prisma.peserta.count(),
+    prisma.peserta.count({ where: { emailVerified: true } }),
+    prisma.peserta.count({ where: { email: { not: null }, emailVerified: false } }),
+    prisma.peserta.count({ where: { email: null } }),
+    prisma.peserta.count({ where }),
+  ])
+
+  const totalPages = Math.max(1, Math.ceil(matching / PER_PAGE))
+  const page = Math.min(Math.max(1, parseInt(sp.page || "1", 10) || 1), totalPages)
+
   const peserta = await prisma.peserta.findMany({
+    where,
     orderBy: { createdAt: "desc" },
-    take: 200,
+    skip: (page - 1) * PER_PAGE,
+    take: PER_PAGE,
   })
 
-  const total = peserta.length
-  const aktif = peserta.filter((p) => p.emailVerified).length
-  const pending = peserta.filter((p) => p.email && !p.emailVerified).length
-  const belum = peserta.filter((p) => !p.email).length
+  const from = matching === 0 ? 0 : (page - 1) * PER_PAGE + 1
+  const to = Math.min(page * PER_PAGE, matching)
+  const pageHref = (n: number) => {
+    const params = new URLSearchParams()
+    if (q) params.set("q", q)
+    if (n > 1) params.set("page", String(n))
+    const s = params.toString()
+    return `/admin/peserta${s ? "?" + s : ""}`
+  }
 
   return (
     <div className="space-y-6">
@@ -45,6 +85,8 @@ export default async function PesertaPage() {
         ))}
       </div>
 
+      <PesertaSearch defaultValue={q} />
+
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -61,7 +103,7 @@ export default async function PesertaPage() {
             {peserta.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  Belum ada peserta. Import Excel untuk mulai.
+                  {q ? `Tidak ada peserta cocok dengan "${q}".` : "Belum ada peserta. Import Excel untuk mulai."}
                 </td>
               </tr>
             ) : (
@@ -83,6 +125,31 @@ export default async function PesertaPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between text-sm">
+        <p className="text-slate-500">
+          Menampilkan {from}–{to} dari {matching}
+          {q ? " hasil pencarian" : " peserta"}
+        </p>
+        <div className="flex items-center gap-2">
+          {page > 1 ? (
+            <Link href={pageHref(page - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
+              ← Sebelumnya
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">← Sebelumnya</span>
+          )}
+          <span className="text-slate-500">Halaman {page} / {totalPages}</span>
+          {page < totalPages ? (
+            <Link href={pageHref(page + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
+              Berikutnya →
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Berikutnya →</span>
+          )}
+        </div>
       </div>
     </div>
   )
