@@ -2,6 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react"
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Bell, LogOut } from "lucide-react"
 import Link from "next/link"
 
@@ -18,6 +19,7 @@ type Batch = {
 
 export function Navbar() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [batches, setBatches] = useState<Batch[]>([])
   const [showNotif, setShowNotif] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -157,7 +159,7 @@ export function Navbar() {
         </div>
 
         <button
-          onClick={() => signOut({ callbackUrl: "/qr-signer/login" })}
+          onClick={async () => { await signOut({ redirect: false }); router.push("/login"); router.refresh() }}
           className="flex h-9 items-center gap-1.5 rounded-xl bg-red-50 px-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
         >
           <LogOut className="h-4 w-4" />

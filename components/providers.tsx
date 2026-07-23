@@ -15,8 +15,11 @@ function AutoLogout() {
   function resetTimer() {
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(async () => {
+      const isPeserta = (session?.user as any)?.kind === "peserta"
       await signOut({ redirect: false })
-      router.push("/login?reason=timeout")
+      // router.push otomatis menambah basePath /qr-signer. Peserta -> portal
+      // peserta, admin -> login admin.
+      router.push(isPeserta ? "/peserta/login?reason=timeout" : "/login?reason=timeout")
     }, IDLE_TIMEOUT)
   }
 
