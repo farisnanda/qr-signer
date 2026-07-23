@@ -69,8 +69,10 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
         canvas.height = vp.height
         setCanvasHeight(vp.height)
         // Posisi default TTD di kolom "Yang mengangkat sumpah".
-        const w = 0.22 * rw
-        setBox({ x: 0.12 * rw, y: 0.72 * vp.height, width: w, height: w * sigRatio.current })
+        // Lebar default dibuat kecil (0.15) agar pas di atas nama, tidak
+        // menabrak area saksi di bawahnya.
+        const w = 0.15 * rw
+        setBox({ x: 0.12 * rw, y: 0.7 * vp.height, width: w, height: w * sigRatio.current })
         await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp, canvas }).promise
       } catch (e: any) {
         if (!cancelled) setError(e?.message || "Gagal menampilkan preview")
