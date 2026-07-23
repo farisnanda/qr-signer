@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Rnd } from "react-rnd"
 
-const RENDER_WIDTH = 600
+const MAX_WIDTH = 600
 const PDF_JS = "https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.mjs"
 const PDF_WORKER = "https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs"
 
@@ -28,6 +28,8 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
   const [error, setError] = useState("")
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [renderWidth, setRenderWidth] = useState(MAX_WIDTH)
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null)
   const [canvasHeight, setCanvasHeight] = useState(0)
   const [box, setBox] = useState<Box>({ x: 72, y: 600, width: 132, height: 45 })
@@ -55,7 +57,11 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
         const buf = await previewBlob.arrayBuffer()
         const pdf = await pdfjs.getDocument({ data: buf }).promise
         const page = await pdf.getPage(1)
-        const scale = RENDER_WIDTH / page.getViewport({ scale: 1 }).width
+        // Lebar render mengikuti lebar kontainer (maks MAX_WIDTH) agar PDF muat
+        // penuh tanpa perlu geser samping. Koordinat TTD tetap fraksional.
+        const rw = Math.min(wrapRef.current?.clientWidth || MAX_WIDTH, MAX_WIDTH)
+        setRenderWidth(rw)
+        const scale = rw / page.getViewport({ scale: 1 }).width
         const vp = page.getViewport({ scale })
         const canvas = canvasRef.current
         if (!canvas || cancelled) return
@@ -63,8 +69,8 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
         canvas.height = vp.height
         setCanvasHeight(vp.height)
         // Posisi default TTD di kolom "Yang mengangkat sumpah".
-        const w = 0.22 * RENDER_WIDTH
-        setBox({ x: 0.12 * RENDER_WIDTH, y: 0.72 * vp.height, width: w, height: w * sigRatio.current })
+        const w = 0.22 * rw
+        setBox({ x: 0.12 * rw, y: 0.72 * vp.height, width: w, height: w * sigRatio.current })
         await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp, canvas }).promise
       } catch (e: any) {
         if (!cancelled) setError(e?.message || "Gagal menampilkan preview")
@@ -114,9 +120,9 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
         credentials: "include",
         body: JSON.stringify({
           pin,
-          xFrac: box.x / RENDER_WIDTH,
+          xFrac: box.x / renderWidth,
           yFracTop: box.y / canvasHeight,
-          wFrac: box.width / RENDER_WIDTH,
+          wFrac: box.width / renderWidth,
         }),
       })
       if (!res.ok) {
@@ -173,9 +179,9 @@ export function GenerateBerita({ hasSignature }: { hasSignature: boolean }) {
       {stage === "place" && (
         <div className="space-y-3">
           <p className="text-sm text-slate-600">Geser & atur ukuran tanda tangan ke posisi yang tepat, lalu finalisasi.</p>
-          <div className="overflow-auto">
-            <div className="relative mx-auto" style={{ width: RENDER_WIDTH, height: canvasHeight || 400 }}>
-              <canvas ref={canvasRef} className="rounded-lg border border-slate-200" />
+          <div ref={wrapRef} className="w-full overflow-hidden">
+            <div className="relative mx-auto" style={{ width: renderWidth, height: canvasHeight || 400 }}>
+              <canvas ref={canvasRef} className="w-full rounded-lg border border-slate-200" />
               {canvasHeight > 0 && (
                 <Rnd
                   bounds="parent"
