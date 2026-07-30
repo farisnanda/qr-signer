@@ -3,8 +3,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { read, utils } from "xlsx"
 import { normalizePangkat } from "@/lib/pangkat"
-
-const AGAMA_VALID = ["Islam", "Kristen", "Budha", "Hindu", "Katolik"]
+import { normalizeAgama } from "@/lib/agama"
 
 /** Ambil nilai kolom secara fleksibel (case-insensitive, abaikan spasi/underscore). */
 function pick(row: Record<string, any>, keys: string[]): string {
@@ -14,11 +13,6 @@ function pick(row: Record<string, any>, keys: string[]): string {
     if (wanted.includes(norm(k))) return String(row[k] ?? "").trim()
   }
   return ""
-}
-
-function normalizeAgama(v: string): string | null {
-  const found = AGAMA_VALID.find((a) => a.toLowerCase() === v.toLowerCase())
-  return found ?? null
 }
 
 export async function POST(request: Request) {

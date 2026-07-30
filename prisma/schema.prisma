@@ -39,6 +39,25 @@ model Peserta {
   signatureKey    String? // object Minio TTD (Fase 2)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  koreksi         KoreksiData[]
+}
+
+/// Permintaan koreksi data peserta (nama/gelar, agama, pangkat, perangkat
+/// daerah). Peserta ajukan -> admin memutuskan (terima/tolak) -> peserta
+/// diberi tahu via email. Diterima = field terkait di Peserta diperbarui.
+model KoreksiData {
+  id            String    @id @default(cuid())
+  pesertaNip    String
+  peserta       Peserta   @relation(fields: [pesertaNip], references: [nip], onDelete: Cascade)
+  field         String // "nama" | "agama" | "pangkat" | "perangkatDaerah"
+  nilaiLama     String
+  nilaiDiminta  String
+  alasan        String?
+  status        String    @default("pending") // pending | approved | rejected
+  catatanAdmin  String?
+  diprosesOleh  String?
+  diprosesAt    DateTime?
+  createdAt     DateTime  @default(now())
 }
 
 /// Sesi pengambilan sumpah dgn PIN. Panitia buat sesi + PIN, dibagikan ke

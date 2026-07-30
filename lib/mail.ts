@@ -86,3 +86,37 @@ export async function sendResetEmail(to: string, nama: string, token: string) {
   )
   return sendMail(to, "Reset Password — SIGNER BKD", html, link)
 }
+
+const FIELD_LABEL: Record<string, string> = {
+  nama: "Nama",
+  agama: "Agama",
+  pangkat: "Pangkat",
+  perangkatDaerah: "Perangkat Daerah",
+}
+
+export async function sendKoreksiKeputusanEmail(
+  to: string,
+  nama: string,
+  field: string,
+  nilaiDiminta: string,
+  disetujui: boolean,
+  catatanAdmin?: string | null
+) {
+  const link = `${APP_URL}/peserta`
+  const label = FIELD_LABEL[field] || field
+  const body = disetujui
+    ? `<p>Halo <strong>${nama}</strong>,</p>
+       <p>Permintaan koreksi data <strong>${label}</strong> Anda menjadi "<strong>${nilaiDiminta}</strong>" telah <strong style="color:#16a34a">disetujui</strong> dan data Anda sudah diperbarui.</p>
+       <p>Anda sudah dapat mencetak/generate Berita Acara dengan data terbaru.</p>`
+    : `<p>Halo <strong>${nama}</strong>,</p>
+       <p>Permintaan koreksi data <strong>${label}</strong> Anda <strong style="color:#dc2626">ditolak</strong> oleh panitia.</p>
+       ${catatanAdmin ? `<p style="background:#fef2f2;border-radius:8px;padding:12px;color:#991b1b">Catatan panitia: ${catatanAdmin}</p>` : ""}
+       <p>Silakan ajukan kembali dengan data yang sesuai, atau hubungi panitia bila ada pertanyaan.</p>`
+  const html = layout(
+    disetujui ? "Koreksi data disetujui" : "Koreksi data ditolak",
+    body,
+    "Buka Portal Peserta",
+    link
+  )
+  return sendMail(to, `Koreksi Data ${disetujui ? "Disetujui" : "Ditolak"} — SIGNER BKD`, html, link)
+}

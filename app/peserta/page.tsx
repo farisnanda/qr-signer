@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { PesertaLogout } from "@/components/peserta/logout-button"
 import { PesertaWorkspace } from "@/components/peserta/workspace"
 
@@ -45,6 +46,12 @@ export default async function PesertaHome() {
           </div>
         ))}
       </dl>
+
+      <div className="mt-3 text-right">
+        <Link href="/peserta/koreksi" className="text-xs font-medium text-blue-600 hover:underline">
+          Data ada yang salah? Ajukan perbaikan →
+        </Link>
+      </div>
 
       <PesertaWorkspace initialSignatureUrl={signatureUrl} initialHasSignature={!!peserta.signatureKey} />
     </div>
