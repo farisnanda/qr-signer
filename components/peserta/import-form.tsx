@@ -62,6 +62,7 @@ export function PesertaImportForm() {
               <div className="mb-1 text-2xl">📋</div>
               <p className="text-sm font-medium text-slate-700">{file ? file.name : "Klik untuk pilih file Excel"}</p>
               <p className="text-xs text-slate-500">Kolom: NIP, Nama, Pangkat, Perangkat Daerah, Agama</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">Pangkat boleh kode (II/c) atau nama (Pengatur)</p>
             </div>
             <input type="file" accept=".xlsx,.xls" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
           </label>

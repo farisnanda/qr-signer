@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { read, utils } from "xlsx"
+import { normalizePangkat } from "@/lib/pangkat"
 
 const AGAMA_VALID = ["Islam", "Kristen", "Budha", "Hindu", "Katolik"]
 
@@ -49,11 +50,11 @@ export async function POST(request: Request) {
     const row = rows[i]
     const nip = pick(row, ["nip", "nip baru", "nipbaru"])
     const nama = pick(row, ["nama"])
-    const pangkat = pick(row, ["pangkat", "gol ruang", "gol. ruang", "golruang"])
+    const pangkatRaw = pick(row, ["pangkat", "gol ruang", "gol. ruang", "golruang", "pangkat/golongan", "golongan"])
     const perangkatDaerah = pick(row, ["perangkat daerah", "perangkatdaerah", "skpd", "opd", "unit kerja"])
     const agamaRaw = pick(row, ["agama"])
 
-    if (!nip || !nama || !pangkat || !perangkatDaerah || !agamaRaw) {
+    if (!nip || !nama || !pangkatRaw || !perangkatDaerah || !agamaRaw) {
       errors.push({ baris: i + 2, nip, pesan: "Data tidak lengkap (butuh NIP, Nama, Pangkat, Perangkat Daerah, Agama)" })
       continue
     }
@@ -61,6 +62,14 @@ export async function POST(request: Request) {
     const agama = normalizeAgama(agamaRaw)
     if (!agama) {
       errors.push({ baris: i + 2, nip, pesan: `Agama tidak dikenali: "${agamaRaw}" (Islam/Kristen/Budha/Hindu/Katolik)` })
+      continue
+    }
+
+    // Terima kode golongan ("II/c") maupun nama pangkat ("Pengatur"), simpan
+    // sebagai kode kanonik agar data konsisten & jabatan di dokumen tepat.
+    const pangkat = normalizePangkat(pangkatRaw)
+    if (!pangkat) {
+      errors.push({ baris: i + 2, nip, pesan: `Pangkat tidak dikenali: "${pangkatRaw}" (contoh: "II/c" atau "Pengatur")` })
       continue
     }
 
