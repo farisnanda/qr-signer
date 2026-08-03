@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { PesertaImportForm } from "@/components/peserta/import-form"
 import { PesertaSearch } from "@/components/peserta/peserta-search"
+import type { Prisma } from "@prisma/client"
 
 export const dynamic = "force-dynamic"
 
@@ -13,24 +14,35 @@ function statusBadge(p: { email: string | null; emailVerified: boolean }) {
   return { label: "Aktif", cls: "bg-green-100 text-green-700" }
 }
 
+function statusWhere(status: string): Prisma.PesertaWhereInput {
+  if (status === "aktif") return { emailVerified: true }
+  if (status === "pending") return { email: { not: null }, emailVerified: false }
+  if (status === "belum") return { email: null }
+  return {}
+}
+
 export default async function PesertaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>
+  searchParams: Promise<{ q?: string; page?: string; status?: string }>
 }) {
   const sp = await searchParams
   const q = (sp.q || "").trim()
+  const status = ["aktif", "pending", "belum"].includes(sp.status || "") ? sp.status! : ""
 
-  // Filter pencarian (NIP / nama / perangkat daerah), case-insensitive.
-  const where = q
-    ? {
-        OR: [
-          { nip: { contains: q, mode: "insensitive" as const } },
-          { nama: { contains: q, mode: "insensitive" as const } },
-          { perangkatDaerah: { contains: q, mode: "insensitive" as const } },
-        ],
-      }
-    : {}
+  const filters: Prisma.PesertaWhereInput[] = []
+  if (q) {
+    filters.push({
+      OR: [
+        { nip: { contains: q, mode: "insensitive" } },
+        { nama: { contains: q, mode: "insensitive" } },
+        { perangkatDaerah: { contains: q, mode: "insensitive" } },
+      ],
+    })
+  }
+  const sw = statusWhere(status)
+  if (Object.keys(sw).length > 0) filters.push(sw)
+  const where: Prisma.PesertaWhereInput = filters.length > 0 ? { AND: filters } : {}
 
   const [total, aktif, pending, belum, matching] = await Promise.all([
     prisma.peserta.count(),
@@ -55,6 +67,7 @@ export default async function PesertaPage({
   const pageHref = (n: number) => {
     const params = new URLSearchParams()
     if (q) params.set("q", q)
+    if (status) params.set("status", status)
     if (n > 1) params.set("page", String(n))
     const s = params.toString()
     return `/admin/peserta${s ? "?" + s : ""}`
@@ -71,7 +84,7 @@ export default async function PesertaPage({
 
       <PesertaImportForm />
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: "Total", value: total, cls: "text-slate-900" },
           { label: "Aktif", value: aktif, cls: "text-green-600" },
@@ -85,7 +98,7 @@ export default async function PesertaPage({
         ))}
       </div>
 
-      <PesertaSearch defaultValue={q} />
+      <PesertaSearch defaultValue={q} defaultStatus={status} />
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -103,7 +116,7 @@ export default async function PesertaPage({
             {peserta.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  {q ? `Tidak ada peserta cocok dengan "${q}".` : "Belum ada peserta. Import Excel untuk mulai."}
+                  {q || status ? "Tidak ada peserta sesuai filter." : "Belum ada peserta. Import Excel untuk mulai."}
                 </td>
               </tr>
             ) : (
@@ -127,27 +140,26 @@ export default async function PesertaPage({
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
         <p className="text-slate-500">
-          Menampilkan {from}–{to} dari {matching}
-          {q ? " hasil pencarian" : " peserta"}
+          Menampilkan {from}-{to} dari {matching}
+          {q || status ? " hasil filter" : " peserta"}
         </p>
         <div className="flex items-center gap-2">
           {page > 1 ? (
             <Link href={pageHref(page - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
-              ← Sebelumnya
+              Sebelumnya
             </Link>
           ) : (
-            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">← Sebelumnya</span>
+            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Sebelumnya</span>
           )}
           <span className="text-slate-500">Halaman {page} / {totalPages}</span>
           {page < totalPages ? (
             <Link href={pageHref(page + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
-              Berikutnya →
+              Berikutnya
             </Link>
           ) : (
-            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Berikutnya →</span>
+            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Berikutnya</span>
           )}
         </div>
       </div>
