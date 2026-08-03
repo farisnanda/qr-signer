@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { PencilLine } from "lucide-react"
 import { PesertaLogout } from "@/components/peserta/logout-button"
 import { PesertaWorkspace } from "@/components/peserta/workspace"
 
@@ -47,10 +48,26 @@ export default async function PesertaHome() {
         ))}
       </dl>
 
-      <div className="mt-3 text-right">
-        <Link href="/peserta/koreksi" className="text-xs font-medium text-blue-600 hover:underline">
-          Data ada yang salah? Ajukan perbaikan →
-        </Link>
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+              <PencilLine className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-950">Perlu koreksi data?</p>
+              <p className="mt-0.5 text-xs font-medium leading-5 text-amber-900">
+                Ajukan pembaruan jika nama, pangkat, agama, atau perangkat daerah belum sesuai.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/peserta/koreksi"
+            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700"
+          >
+            Ajukan Koreksi
+          </Link>
+        </div>
       </div>
 
       <PesertaWorkspace initialSignatureUrl={signatureUrl} initialHasSignature={!!peserta.signatureKey} />
