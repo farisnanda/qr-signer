@@ -70,14 +70,14 @@ export default function AktivasiPage() {
       {step === 1 && (
         <>
           <h2 className="mb-1 text-lg font-bold text-slate-900">Aktivasi Akun</h2>
-          <p className="mb-5 text-sm text-slate-500">Masukkan NIP Anda untuk memulai.</p>
+          <p className="mb-5 text-sm text-slate-600">Masukkan NIP Anda untuk memulai.</p>
           <form onSubmit={cekNip} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">NIP</label>
+              <label className="mb-1 block text-sm font-medium text-slate-800">NIP</label>
               <input
                 value={nip}
                 onChange={(e) => setNip(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-950 caret-blue-700 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 placeholder="Masukkan NIP"
                 required
               />
@@ -93,26 +93,26 @@ export default function AktivasiPage() {
       {step === 2 && (
         <>
           <h2 className="mb-1 text-lg font-bold text-slate-900">Halo, {nama}</h2>
-          <p className="mb-5 text-sm text-slate-500">Buat email & password. Link verifikasi dikirim ke email ini.</p>
+          <p className="mb-5 text-sm text-slate-600">Buat email & password. Link verifikasi dikirim ke email ini.</p>
           <form onSubmit={aktivasi} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+              <label className="mb-1 block text-sm font-medium text-slate-800">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-950 caret-blue-700 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 placeholder="email@contoh.com"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
+              <label className="mb-1 block text-sm font-medium text-slate-800">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-950 caret-blue-700 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 placeholder="Minimal 6 karakter"
                 minLength={6}
                 required
@@ -130,7 +130,7 @@ export default function AktivasiPage() {
         <>
           <div className="mb-3 text-center text-4xl">📧</div>
           <h2 className="mb-1 text-center text-lg font-bold text-slate-900">Cek Email Anda</h2>
-          <p className="mb-4 text-center text-sm text-slate-500">{done.message}</p>
+          <p className="mb-4 text-center text-sm text-slate-700">{done.message}</p>
           {done.devLink && (
             <div className="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
               <p className="mb-1 font-medium">Mode dev (SMTP belum diset) — link verifikasi:</p>
@@ -144,7 +144,7 @@ export default function AktivasiPage() {
       )}
 
       <div className="mt-5 text-center text-xs">
-        <Link href="/peserta/login" className="text-slate-500 hover:underline">Sudah punya akun? Login</Link>
+        <Link href="/peserta/login" className="font-medium text-blue-700 hover:text-blue-800 hover:underline">Sudah punya akun? Login</Link>
       </div>
     </div>
   )

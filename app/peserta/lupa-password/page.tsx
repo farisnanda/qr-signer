@@ -37,7 +37,7 @@ export default function LupaPasswordPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
         <div className="mb-3 text-4xl">📧</div>
         <h2 className="mb-1 text-lg font-bold text-slate-900">Cek Email Anda</h2>
-        <p className="mb-4 text-sm text-slate-500">{done.message}</p>
+        <p className="mb-4 text-sm text-slate-700">{done.message}</p>
         {done.devLink && (
           <div className="mb-4 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-700">
             <p className="mb-1 font-medium">Mode dev — link reset:</p>
@@ -54,14 +54,14 @@ export default function LupaPasswordPage() {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="mb-1 text-lg font-bold text-slate-900">Lupa Password</h2>
-      <p className="mb-5 text-sm text-slate-500">Masukkan NIP. Link reset dikirim ke email terdaftar.</p>
+      <p className="mb-5 text-sm text-slate-600">Masukkan NIP. Link reset dikirim ke email terdaftar.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">NIP</label>
+          <label className="mb-1 block text-sm font-medium text-slate-800">NIP</label>
           <input
             value={nip}
             onChange={(e) => setNip(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-950 caret-blue-700 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             placeholder="Masukkan NIP"
             required
           />
@@ -72,7 +72,7 @@ export default function LupaPasswordPage() {
         </button>
       </form>
       <div className="mt-5 text-center text-xs">
-        <Link href="/peserta/login" className="text-slate-500 hover:underline">Kembali ke login</Link>
+        <Link href="/peserta/login" className="font-medium text-blue-700 hover:text-blue-800 hover:underline">Kembali ke login</Link>
       </div>
     </div>
   )
