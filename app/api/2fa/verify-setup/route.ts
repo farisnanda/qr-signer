@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import * as OTPAuth from "otpauth"
+import { decryptTwoFactorSecret } from "@/lib/db-security"
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     algorithm: "SHA1",
     digits: 6,
     period: 30,
-    secret: OTPAuth.Secret.fromBase32(user.twoFactorSecret),
+    secret: OTPAuth.Secret.fromBase32(decryptTwoFactorSecret(user.twoFactorSecret)),
   })
 
   const delta = totp.validate({ token: code, window: 1 })

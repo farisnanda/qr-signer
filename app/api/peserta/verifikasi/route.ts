@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { hashToken } from "@/lib/db-security"
 
 /** Verifikasi email via token. Publik. */
 export async function POST(request: Request) {
@@ -8,7 +9,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Token tidak ada" }, { status: 400 })
   }
 
-  const peserta = await prisma.peserta.findUnique({ where: { verifyToken: clean } })
+  const tokenHash = hashToken(clean)
+  const peserta = await prisma.peserta.findFirst({
+    where: {
+      OR: [
+        { verifyToken: tokenHash },
+        { verifyToken: clean },
+      ],
+    },
+  })
   if (!peserta) {
     return Response.json({ error: "Token tidak valid atau sudah dipakai" }, { status: 400 })
   }

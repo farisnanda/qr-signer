@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import * as OTPAuth from "otpauth"
 import QRCode from "qrcode"
 import bcrypt from "bcryptjs"
+import { encryptTwoFactorSecret } from "@/lib/db-security"
 
 export async function POST(req: Request) {
   const { email, password } = await req.json()
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
 
   await prisma.user.update({
     where: { email },
-    data: { twoFactorSecret: secretBase32 },
+    data: { twoFactorSecret: encryptTwoFactorSecret(secretBase32) },
   })
 
   const totp = new OTPAuth.TOTP({

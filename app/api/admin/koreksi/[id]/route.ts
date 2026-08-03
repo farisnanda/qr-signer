@@ -25,7 +25,15 @@ export async function POST(
 
   const koreksi = await prisma.koreksiData.findUnique({
     where: { id },
-    include: { peserta: true },
+    include: {
+      peserta: {
+        select: {
+          nip: true,
+          nama: true,
+          email: true,
+        },
+      },
+    },
   })
   if (!koreksi) {
     return Response.json({ error: "Permintaan tidak ditemukan" }, { status: 404 })

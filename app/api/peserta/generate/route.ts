@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { uploadToMinio, downloadFromMinio } from "@/lib/minio"
 import { generateSumpahPdf, stampSignatureOnPdf, getSumpahFilename } from "@/lib/sumpah"
 import { getJabatan } from "@/lib/pangkat"
+import { hashLookup } from "@/lib/db-security"
 
 // Simpan ke bucket "bkd" path "sk_pns/". Tanggal penamaan FIX 01012026.
 const BUCKET = "bkd"
@@ -35,7 +36,14 @@ export async function POST(request: Request) {
   }
 
   // Validasi PIN → sesi aktif.
-  const sesi = await prisma.sesi.findFirst({ where: { pin, aktif: true } })
+  const pinHash = hashLookup(pin, "sesi-pin")
+  const sesiRows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT "id"
+    FROM "Sesi"
+    WHERE "aktif" = true AND ("pinHash" = ${pinHash} OR "pin" = ${pin})
+    LIMIT 1
+  `
+  const sesi = sesiRows[0]
   if (!sesi) {
     return Response.json({ error: "PIN tidak valid atau sesi tidak aktif" }, { status: 403 })
   }

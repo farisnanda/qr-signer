@@ -1,13 +1,20 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { encryptSecretValue, hashLookup } from "@/lib/db-security"
 
 async function generateUniquePin(): Promise<string> {
   // PIN 6 digit, unik di antara sesi yang masih aktif agar validasi tak ambigu.
   for (let i = 0; i < 20; i++) {
     const pin = String(Math.floor(100000 + Math.random() * 900000))
-    const clash = await prisma.sesi.findFirst({ where: { pin, aktif: true } })
-    if (!clash) return pin
+    const pinHash = hashLookup(pin, "sesi-pin")
+    const clash = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "Sesi"
+      WHERE "aktif" = true AND ("pinHash" = ${pinHash} OR "pin" = ${pin})
+      LIMIT 1
+    `
+    if (clash.length === 0) return pin
   }
   throw new Error("Gagal membuat PIN unik")
 }
@@ -25,10 +32,16 @@ export async function POST(request: Request) {
   }
 
   const pin = await generateUniquePin()
+  const pinHash = hashLookup(pin, "sesi-pin")
   const sesi = await prisma.sesi.create({
-    data: { nama: clean, pin, createdBy: session.user.email },
+    data: {
+      nama: clean,
+      pin: encryptSecretValue(pin),
+      createdBy: session.user.email,
+    },
   })
-  return Response.json({ ok: true, sesi })
+  await prisma.$executeRaw`UPDATE "Sesi" SET "pinHash" = ${pinHash} WHERE "id" = ${sesi.id}`
+  return Response.json({ ok: true, sesi: { ...sesi, pin } })
 }
 
 export async function PATCH(request: Request) {

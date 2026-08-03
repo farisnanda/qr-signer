@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { sendVerificationEmail } from "@/lib/mail"
 import bcrypt from "bcryptjs"
 import { randomBytes } from "crypto"
+import { hashToken } from "@/lib/db-security"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
       email,
       password: hashed,
       emailVerified: false,
-      verifyToken: token,
+      verifyToken: hashToken(token),
       verifyExpires: expires,
     },
   })

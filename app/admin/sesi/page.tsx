@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { SesiManager } from "@/components/sesi/sesi-manager"
+import { decryptSecretValue } from "@/lib/db-security"
 
 export const dynamic = "force-dynamic"
 
@@ -13,7 +14,7 @@ export default async function SesiPage() {
   const data = sesiList.map((s) => ({
     id: s.id,
     nama: s.nama,
-    pin: s.pin,
+    pin: decryptSecretValue(s.pin),
     aktif: s.aktif,
     hadir: s._count.kehadiran,
     createdAt: s.createdAt.toISOString(),

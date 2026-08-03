@@ -23,41 +23,48 @@ model User {
 /// Perangkat Daerah/Agama), lalu peserta aktivasi sendiri: isi email+password,
 /// verifikasi lewat email. emailVerified = gerbang boleh login.
 model Peserta {
-  id              String    @id @default(cuid())
-  nip             String    @unique
+  id              String        @id @default(cuid())
+  nip             String        @unique
   nama            String
   pangkat         String
   perangkatDaerah String
   agama           String
-  email           String?   @unique
+  email           String?       @unique
   password        String?
-  emailVerified   Boolean   @default(false)
-  verifyToken     String?   @unique
+  emailVerified   Boolean       @default(false)
+  verifyToken     String?       @unique
   verifyExpires   DateTime?
-  resetToken      String?   @unique
+  resetToken      String?       @unique
   resetExpires    DateTime?
   signatureKey    String? // object Minio TTD (Fase 2)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   koreksi         KoreksiData[]
+
+  @@index([emailVerified, createdAt])
+  @@index([perangkatDaerah])
+  @@index([createdAt])
 }
 
 /// Permintaan koreksi data peserta (nama/gelar, agama, pangkat, perangkat
 /// daerah). Peserta ajukan -> admin memutuskan (terima/tolak) -> peserta
 /// diberi tahu via email. Diterima = field terkait di Peserta diperbarui.
 model KoreksiData {
-  id            String    @id @default(cuid())
-  pesertaNip    String
-  peserta       Peserta   @relation(fields: [pesertaNip], references: [nip], onDelete: Cascade)
-  field         String // "nama" | "agama" | "pangkat" | "perangkatDaerah"
-  nilaiLama     String
-  nilaiDiminta  String
-  alasan        String?
-  status        String    @default("pending") // pending | approved | rejected
-  catatanAdmin  String?
-  diprosesOleh  String?
-  diprosesAt    DateTime?
-  createdAt     DateTime  @default(now())
+  id           String    @id @default(cuid())
+  pesertaNip   String
+  peserta      Peserta   @relation(fields: [pesertaNip], references: [nip], onDelete: Cascade)
+  field        String // "nama" | "agama" | "pangkat" | "perangkatDaerah"
+  nilaiLama    String
+  nilaiDiminta String
+  alasan       String?
+  status       String    @default("pending") // pending | approved | rejected
+  catatanAdmin String?
+  diprosesOleh String?
+  diprosesAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([pesertaNip, createdAt])
 }
 
 /// Sesi pengambilan sumpah dgn PIN. Panitia buat sesi + PIN, dibagikan ke
@@ -66,10 +73,15 @@ model Sesi {
   id        String      @id @default(cuid())
   nama      String
   pin       String
+  pinHash   String?     @unique
   aktif     Boolean     @default(true)
   createdBy String
   createdAt DateTime    @default(now())
   kehadiran Kehadiran[]
+
+  @@index([aktif, createdAt])
+  @@index([pin, aktif])
+  @@index([pinHash, aktif])
 }
 
 /// Catatan kehadiran: peserta yg sudah absen (via PIN) & generate dokumen.
@@ -83,6 +95,8 @@ model Kehadiran {
   checkedInAt DateTime @default(now())
 
   @@unique([sesiId, pesertaNip])
+  @@index([pesertaNip])
+  @@index([checkedInAt])
 }
 
 model SignBatch {
@@ -97,6 +111,9 @@ model SignBatch {
   signedBy       String
   createdAt      DateTime  @default(now())
   logs           SignLog[]
+
+  @@index([signedBy, createdAt])
+  @@index([jenisSk, createdAt])
 }
 
 model SignLog {
@@ -111,6 +128,11 @@ model SignLog {
   errorMessage String?
   signedBy     String
   signedAt     DateTime  @default(now())
+
+  @@index([batchId, signedAt])
+  @@index([signedBy, signedAt])
+  @@index([status, signedAt])
+  @@index([nip])
 }
 
 model Document {

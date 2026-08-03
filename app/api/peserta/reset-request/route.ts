@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { sendResetEmail } from "@/lib/mail"
 import { randomBytes } from "crypto"
+import { hashToken } from "@/lib/db-security"
 
 /** Minta reset password via NIP. Publik. Respons generik agar tak membocorkan
  * NIP mana yang terdaftar. */
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
 
   await prisma.peserta.update({
     where: { id: peserta.id },
-    data: { resetToken: token, resetExpires: expires },
+    data: { resetToken: hashToken(token), resetExpires: expires },
   })
 
   const devLink = process.env.NODE_ENV !== "production" && !mail.sent ? mail.link : undefined

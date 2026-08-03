@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import * as OTPAuth from "otpauth"
 import QRCode from "qrcode"
+import { encryptTwoFactorSecret } from "@/lib/db-security"
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -20,7 +21,7 @@ export async function GET() {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { twoFactorSecret: secretBase32 },
+    data: { twoFactorSecret: encryptTwoFactorSecret(secretBase32) },
   })
 
   const totp = new OTPAuth.TOTP({

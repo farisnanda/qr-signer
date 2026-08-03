@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { hashToken } from "@/lib/db-security"
 
 /** Set password baru via token reset. Publik. */
 export async function POST(request: Request) {
@@ -14,7 +15,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Password minimal 6 karakter" }, { status: 400 })
   }
 
-  const peserta = await prisma.peserta.findUnique({ where: { resetToken: token } })
+  const tokenHash = hashToken(token)
+  const peserta = await prisma.peserta.findFirst({
+    where: {
+      OR: [
+        { resetToken: tokenHash },
+        { resetToken: token },
+      ],
+    },
+  })
   if (!peserta) {
     return Response.json({ error: "Token tidak valid atau sudah dipakai" }, { status: 400 })
   }
