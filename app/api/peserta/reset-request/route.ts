@@ -3,6 +3,8 @@ import { sendResetEmail } from "@/lib/mail"
 import { randomBytes } from "crypto"
 import { hashToken } from "@/lib/db-security"
 
+const RESET_TOKEN_TTL_MS = 3 * 60 * 60 * 1000
+
 /** Minta reset password via NIP. Publik. Respons generik agar tak membocorkan
  * NIP mana yang terdaftar. */
 export async function POST(request: Request) {
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   const token = randomBytes(32).toString("hex")
-  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  const expires = new Date(Date.now() + RESET_TOKEN_TTL_MS)
 
   // Kirim email DULU; kalau gagal, jangan persist token & tetap respons generik
   // (jangan bocorkan bahwa NIP ini terdaftar).
