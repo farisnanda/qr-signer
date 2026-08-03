@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { decryptSecretValue } from "@/lib/db-security"
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import { AdminPagination } from "@/components/admin/pagination"
 
 export const dynamic = "force-dynamic"
 
@@ -182,23 +183,7 @@ export default async function SesiDetailPage({
         <p className="text-slate-500">
           Menampilkan {from}-{to} dari {matching} kehadiran
         </p>
-        <div className="flex items-center gap-2">
-          {page > 1 ? (
-            <Link href={pageHref(page - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
-              Sebelumnya
-            </Link>
-          ) : (
-            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Sebelumnya</span>
-          )}
-          <span className="text-slate-500">Halaman {page} / {totalPages}</span>
-          {page < totalPages ? (
-            <Link href={pageHref(page + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
-              Berikutnya
-            </Link>
-          ) : (
-            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Berikutnya</span>
-          )}
-        </div>
+        <AdminPagination page={page} totalPages={totalPages} hrefForPage={pageHref} />
       </div>
     </div>
   )

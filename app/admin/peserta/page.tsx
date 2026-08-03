@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { PesertaImportForm } from "@/components/peserta/import-form"
 import { PesertaSearch } from "@/components/peserta/peserta-search"
+import { AdminPagination } from "@/components/admin/pagination"
 import type { Prisma } from "@prisma/client"
 
 export const dynamic = "force-dynamic"
@@ -145,23 +146,7 @@ export default async function PesertaPage({
           Menampilkan {from}-{to} dari {matching}
           {q || status ? " hasil filter" : " peserta"}
         </p>
-        <div className="flex items-center gap-2">
-          {page > 1 ? (
-            <Link href={pageHref(page - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
-              Sebelumnya
-            </Link>
-          ) : (
-            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Sebelumnya</span>
-          )}
-          <span className="text-slate-500">Halaman {page} / {totalPages}</span>
-          {page < totalPages ? (
-            <Link href={pageHref(page + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-50">
-              Berikutnya
-            </Link>
-          ) : (
-            <span className="rounded-lg border border-slate-100 px-3 py-1.5 font-medium text-slate-300">Berikutnya</span>
-          )}
-        </div>
+        <AdminPagination page={page} totalPages={totalPages} hrefForPage={pageHref} />
       </div>
     </div>
   )
