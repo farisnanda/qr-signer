@@ -23,27 +23,31 @@ model User {
 /// Perangkat Daerah/Agama), lalu peserta aktivasi sendiri: isi email+password,
 /// verifikasi lewat email. emailVerified = gerbang boleh login.
 model Peserta {
-  id              String        @id @default(cuid())
-  nip             String        @unique
-  nama            String
-  pangkat         String
-  perangkatDaerah String
-  agama           String
-  email           String?       @unique
-  password        String?
-  emailVerified   Boolean       @default(false)
-  verifyToken     String?       @unique
-  verifyExpires   DateTime?
-  resetToken      String?       @unique
-  resetExpires    DateTime?
-  signatureKey    String? // object Minio TTD (Fase 2)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  koreksi         KoreksiData[]
+  id                     String        @id @default(cuid())
+  nip                    String        @unique
+  nama                   String
+  pangkat                String
+  perangkatDaerah        String
+  agama                  String
+  email                  String?       @unique
+  password               String?
+  emailVerified          Boolean       @default(false)
+  verifyToken            String?       @unique
+  verifyExpires          DateTime?
+  resetToken             String?       @unique
+  resetExpires           DateTime?
+  activationSentAt       DateTime?
+  activationWindowStart  DateTime?
+  activationRequestCount Int           @default(0)
+  signatureKey           String? // object Minio TTD (Fase 2)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  koreksi                KoreksiData[]
 
   @@index([emailVerified, createdAt])
   @@index([perangkatDaerah])
   @@index([createdAt])
+  @@index([activationWindowStart])
 }
 
 /// Permintaan koreksi data peserta (nama/gelar, agama, pangkat, perangkat

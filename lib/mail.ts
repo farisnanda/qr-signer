@@ -61,7 +61,7 @@ function layout(title: string, body: string, buttonText: string, link: string) {
       <a href="${link}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:600">${buttonText}</a>
     </p>
     <p style="color:#94a3b8;font-size:12px">Kalau tombol tidak berfungsi, salin tautan ini:<br>${link}</p>
-    <p style="color:#94a3b8;font-size:12px">Tautan berlaku 24 jam. Abaikan email ini bila Anda tidak merasa melakukan permintaan.</p>
+    <p style="color:#94a3b8;font-size:12px">Tautan berlaku 3 jam. Abaikan email ini bila Anda tidak merasa melakukan permintaan.</p>
   </div>`
 }
 
