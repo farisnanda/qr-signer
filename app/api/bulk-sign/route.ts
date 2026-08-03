@@ -12,11 +12,12 @@ import { PDFDocument } from "pdf-lib"
 import QRCode from "qrcode"
 import { publicVerifyUrl } from "@/lib/urls"
 import { signPdfV2 } from "@/lib/bsre"
+import { requireAdminRole } from "@/lib/security"
 
 export async function POST(req: Request) {
   try {
     await headers()
-    const session = await getServerSession(authOptions)
+    const session = await requireAdminRole(["SUPERADMIN", "ADMIN", "BIDANG", "PENGIRIM"])
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

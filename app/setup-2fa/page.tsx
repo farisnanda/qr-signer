@@ -13,20 +13,21 @@ export default function Setup2FAPage() {
 
   useEffect(() => {
     const pendingEmail = sessionStorage.getItem("2fa_pending_email")
-    if (!pendingEmail) {
+    const pendingPassword = sessionStorage.getItem("2fa_pending_password")
+    if (!pendingEmail || !pendingPassword) {
       window.location.href = "/qr-signer/login"
       return
     }
     setEmailState(pendingEmail)
-    generateQR(pendingEmail)
+    generateQR(pendingEmail, pendingPassword)
   }, [])
 
-  async function generateQR(email: string) {
+  async function generateQR(email: string, password: string) {
     try {
       const res = await fetch("/qr-signer/api/2fa/setup-init", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -43,11 +44,17 @@ export default function Setup2FAPage() {
     if (code.length !== 6) { setError("Kode harus 6 digit"); return }
     setLoading(true)
     setError("")
+    const password = sessionStorage.getItem("2fa_pending_password")
+    if (!password) {
+      setError("Session tidak valid, silakan login ulang")
+      setLoading(false)
+      return
+    }
 
     const res = await fetch("/qr-signer/api/2fa/setup-verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
+      body: JSON.stringify({ email, password, code }),
     })
 
     const data = await res.json()
@@ -56,6 +63,7 @@ export default function Setup2FAPage() {
     if (!res.ok) { setError(data.error || "Kode tidak valid"); return }
 
     sessionStorage.removeItem("2fa_pending_email")
+    sessionStorage.removeItem("2fa_pending_password")
     window.location.href = "/qr-signer/admin"
   }
 

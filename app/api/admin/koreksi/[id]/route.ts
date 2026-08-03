@@ -1,17 +1,16 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { normalizeAgama } from "@/lib/agama"
 import { normalizePangkat } from "@/lib/pangkat"
 import { sendKoreksiKeputusanEmail } from "@/lib/mail"
+import { requireAdminRole } from "@/lib/security"
 
 /** Putuskan permintaan koreksi (admin): terima atau tolak. */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email || (session.user as any)?.kind === "peserta") {
+  const session = await requireAdminRole(["SUPERADMIN", "ADMIN", "BIDANG"])
+  if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 

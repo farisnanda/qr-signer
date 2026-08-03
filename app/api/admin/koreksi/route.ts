@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireAdminRole } from "@/lib/security"
 
 /** Daftar permintaan koreksi data (admin). ?status=pending|approved|rejected */
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email || (session.user as any)?.kind === "peserta") {
+  const session = await requireAdminRole(["SUPERADMIN", "ADMIN", "BIDANG"])
+  if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 

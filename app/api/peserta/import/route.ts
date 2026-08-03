@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { read, utils } from "xlsx"
 import { normalizePangkat } from "@/lib/pangkat"
 import { normalizeAgama } from "@/lib/agama"
+import { requireAdminRole } from "@/lib/security"
 
 /** Ambil nilai kolom secara fleksibel (case-insensitive, abaikan spasi/underscore). */
 function pick(row: Record<string, any>, keys: string[]): string {
@@ -16,7 +15,7 @@ function pick(row: Record<string, any>, keys: string[]): string {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
+  const session = await requireAdminRole(["SUPERADMIN", "ADMIN"])
   if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }

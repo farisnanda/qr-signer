@@ -3,18 +3,22 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import * as OTPAuth from "otpauth"
 import { encode } from "next-auth/jwt"
+import bcrypt from "bcryptjs"
 
 export async function POST(req: NextRequest) {
-  const { email, code } = await req.json()
+  const { email, password, code } = await req.json()
 
-  if (!email || !code) {
-    return NextResponse.json({ error: "Email dan kode wajib diisi" }, { status: 400 })
+  if (!email || !password || !code) {
+    return NextResponse.json({ error: "Email, password, dan kode wajib diisi" }, { status: 400 })
   }
 
   const user = await prisma.user.findUnique({ where: { email } })
-  if (!user?.twoFactorSecret || !user.twoFactorEnabled) {
+  if (!user?.password || !user.twoFactorSecret || !user.twoFactorEnabled) {
     return NextResponse.json({ error: "2FA tidak aktif" }, { status: 400 })
   }
+
+  const passwordMatch = await bcrypt.compare(password, user.password)
+  if (!passwordMatch) return NextResponse.json({ error: "Login tidak valid" }, { status: 401 })
 
   const totp = new OTPAuth.TOTP({
     issuer: "SIGNER BKD Jawa Timur",

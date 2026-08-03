@@ -124,9 +124,10 @@ export const authOptions = {
           token.twoFactorEnabled = dbUser.twoFactorEnabled
           token.twoFactorVerified = true
         } else {
-          token.role = "PENGIRIM"
+          token.role = undefined
           token.bidang = undefined
-          token.twoFactorVerified = true
+          token.twoFactorVerified = false
+          token.unregistered = true
         }
       }
 

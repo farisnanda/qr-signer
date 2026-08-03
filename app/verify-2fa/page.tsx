@@ -10,7 +10,8 @@ function VerifyForm() {
 
   useEffect(() => {
     const pendingEmail = sessionStorage.getItem("2fa_pending_email")
-    if (!pendingEmail) {
+    const pendingPassword = sessionStorage.getItem("2fa_pending_password")
+    if (!pendingEmail || !pendingPassword) {
       window.location.href = "/qr-signer/login"
       return
     }
@@ -23,11 +24,17 @@ function VerifyForm() {
     if (code.length !== 6) { setError("Kode harus 6 digit"); return }
     setLoading(true)
     setError("")
+    const password = sessionStorage.getItem("2fa_pending_password")
+    if (!password) {
+      setError("Session tidak valid, silakan login ulang")
+      setLoading(false)
+      return
+    }
 
     const res = await fetch("/qr-signer/api/2fa/validate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
+      body: JSON.stringify({ email, password, code }),
     })
 
     const result = await res.json()
@@ -36,6 +43,7 @@ function VerifyForm() {
     if (!res.ok) { setError(result.error || "Kode tidak valid"); return }
 
     sessionStorage.removeItem("2fa_pending_email")
+    sessionStorage.removeItem("2fa_pending_password")
     window.location.href = "/qr-signer/admin"
   }
 

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { checkUserStatusV2 } from "@/lib/bsre"
+import { requireAdminRole } from "@/lib/security"
 
 // Pre-check status sertifikat penandatangan sebelum memproses batch TTE.
 // Kredensial dikirim transien dari klien — tidak disimpan/di-log.
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
+  const session = await requireAdminRole(["SUPERADMIN", "ADMIN", "BIDANG", "PENGIRIM"])
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

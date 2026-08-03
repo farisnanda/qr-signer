@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { headers } from "next/headers"
+import { requireAdminRole } from "@/lib/security"
 
 export async function GET() {
   await headers()
-  const session = await getServerSession(authOptions)
+  const session = await requireAdminRole()
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const email = session.user.email!

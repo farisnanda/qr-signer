@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma"
 import { checkUserStatusV2, signPdfV2 } from "@/lib/bsre"
 import { publicVerifyUrl } from "@/lib/urls"
 import { uploadToMinio, getPresignedUrl } from "@/lib/minio"
+import { requireAdminRole } from "@/lib/security"
 
 const MINIO_BUCKET = process.env.MINIO_BUCKET || "qr-signer-sk"
 
@@ -199,7 +200,7 @@ type ResultItem = {
 
 export async function POST(req: Request) {
   await headers()
-  const session = await getServerSession(authOptions)
+  const session = await requireAdminRole(["SUPERADMIN", "ADMIN", "BIDANG", "PENGIRIM"])
   if (!session?.user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }

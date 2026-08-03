@@ -36,6 +36,7 @@ function LoginForm() {
     // 2FA belum setup → wajib setup dulu
     if (result.error === "2FA_SETUP_REQUIRED") {
       sessionStorage.setItem("2fa_pending_email", email)
+      sessionStorage.setItem("2fa_pending_password", password)
       router.push("/setup-2fa")
       return
     }
@@ -43,6 +44,7 @@ function LoginForm() {
     // 2FA sudah aktif → verifikasi kode
     if (result.error === "2FA_REQUIRED") {
       sessionStorage.setItem("2fa_pending_email", email)
+      sessionStorage.setItem("2fa_pending_password", password)
       router.push("/verify-2fa")
       return
     }

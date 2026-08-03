@@ -24,7 +24,7 @@ export default async function VerifyPage({
   })
 
   const fileName = document?.filePath?.split("/").pop()
-  const fileUrl = fileName ? `/qr-signer/api/files/${fileName}` : null
+  const fileUrl = fileName ? `/qr-signer/api/files/${fileName}?token=${encodeURIComponent(token)}` : null
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-10">

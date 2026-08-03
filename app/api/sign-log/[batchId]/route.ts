@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { headers } from "next/headers"
+import { isSuperAdmin } from "@/lib/security"
 
 const LOGS_PER_PAGE = 10
 
@@ -18,6 +19,15 @@ export async function GET(
   const { batchId } = await params
   const { searchParams } = req.nextUrl
   const logPage = Math.max(1, Number(searchParams.get("page") || 1))
+
+  const batch = await prisma.signBatch.findUnique({
+    where: { id: batchId },
+    select: { signedBy: true },
+  })
+
+  if (!batch || (!isSuperAdmin(session) && batch.signedBy !== session.user.email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   const [totalLogs, logs] = await Promise.all([
     prisma.signLog.count({ where: { batchId } }),
