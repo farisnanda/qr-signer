@@ -3,7 +3,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { requireAdminRole } from "@/lib/security"
 import { prisma } from "@/lib/prisma"
-import { OnlyOfficeEditor } from "@/components/admin/onlyoffice-editor"
+import { HtmlTemplateEditor } from "@/components/admin/html-template-editor"
 
 export default async function EditSumpahTemplatePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminRole(["SUPERADMIN", "ADMIN"])
@@ -28,12 +28,12 @@ export default async function EditSumpahTemplatePage({ params }: { params: Promi
             {template.agama} — {template.versi}
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Perubahan tersimpan otomatis saat kamu Ctrl+S / klik Simpan di editor. Ga perlu upload file lagi.
+            Edit langsung di sini, klik tombol Simpan buat nyimpen. Ga perlu upload file lagi.
           </p>
         </div>
       </div>
 
-      <OnlyOfficeEditor templateId={template.id} />
+      <HtmlTemplateEditor templateId={template.id} />
     </div>
   )
 }
