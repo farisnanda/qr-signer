@@ -152,3 +152,16 @@ model Document {
   documentDate DateTime?
   createdAt    DateTime  @default(now())
 }
+
+/// Mode maintenance portal peserta (baris tunggal, id="singleton"). Admin
+/// aktifkan lewat Settings > Maintenance, isi target waktu aktif kembali +
+/// pesan opsional. Middleware blokir seluruh /peserta selama active=true dan
+/// activeAgainAt belum lewat (lewat = otomatis dianggap nonaktif lagi).
+model MaintenanceMode {
+  id            String    @id @default("singleton")
+  active        Boolean   @default(false)
+  message       String?
+  activeAgainAt DateTime?
+  updatedBy     String?
+  updatedAt     DateTime  @updatedAt
+}

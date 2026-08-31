@@ -10,6 +10,19 @@
   ::file-selector-button {
     border-color: var(--color-slate-200, currentColor);
   }
+
+  input,
+  textarea,
+  select {
+    background-color: #ffffff;
+    color: #020617;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #64748b;
+    opacity: 1;
+  }
 }
 
 :root {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
+import { getMaintenanceStatus } from "@/lib/maintenance"
 
 // Halaman peserta yang boleh diakses tanpa login.
 const PESERTA_PUBLIC = [
@@ -9,7 +10,12 @@ const PESERTA_PUBLIC = [
   "/peserta/verifikasi",
   "/peserta/lupa-password",
   "/peserta/reset",
+  "/peserta/maintenance",
 ]
+
+// Halaman maintenance sendiri harus tetap bisa diakses (tempat redirect
+// jatuh), tidak boleh ikut diblokir oleh cek maintenance di bawah.
+const PESERTA_MAINTENANCE_PATH = "/peserta/maintenance"
 
 // Redirect yang menghormati basePath (/qr-signer). nextUrl.clone() sudah
 // membawa basePath, jadi cukup set pathname app-relative.
@@ -37,6 +43,15 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/peserta")) {
+    // Mode maintenance: blokir SELURUH /peserta (login, aktivasi, workspace
+    // yg udah login, dll), kecuali halaman maintenance itu sendiri.
+    if (pathname !== PESERTA_MAINTENANCE_PATH && !pathname.startsWith(PESERTA_MAINTENANCE_PATH + "/")) {
+      const maintenance = await getMaintenanceStatus()
+      if (maintenance.active) {
+        return redirectTo(req, PESERTA_MAINTENANCE_PATH)
+      }
+    }
+
     const isPublic = PESERTA_PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"))
     if (isPublic) return NextResponse.next()
     // Halaman peserta terproteksi butuh sesi peserta.
