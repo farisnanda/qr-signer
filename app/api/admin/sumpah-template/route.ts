@@ -1,7 +1,10 @@
+import { readFileSync } from "fs"
+import { join } from "path"
 import { prisma } from "@/lib/prisma"
 import { requireAdminRole } from "@/lib/security"
 import { uploadToMinio, downloadFromMinio, DOCX_CONTENT_TYPE } from "@/lib/minio"
 import { newDocumentKey } from "@/lib/onlyoffice"
+import { discoverLocalTemplates, findLocalTemplate } from "@/lib/sumpah-template-discovery"
 
 const ALLOWED_ROLES = ["SUPERADMIN", "ADMIN"] as const
 const AGAMA_LIST = ["Islam", "Kristen", "Budha", "Hindu", "Katolik"] as const
@@ -11,17 +14,45 @@ function templateKey(agama: string, versi: string, documentKey: string): string 
   return `sumpah/${agama}/${versi}/${documentKey}.docx`
 }
 
-/** Daftar semua template (grid agama x versi), buat halaman admin. */
+/**
+ * Daftar semua template buat halaman admin — gabungan baris yang udah di
+ * sistem (DB+Minio+OnlyOffice) DAN file .docx lokal di templates/CEK/ yang
+ * masih peninggalan lama, belum di-import. Baris lokal ditandai
+ * source:"local", klik "Edit" di situ langsung import + buka editor sekaligus
+ * (lihat POST mode "importLocal" di bawah) — ga perlu upload manual.
+ */
 export async function GET() {
   const session = await requireAdminRole(ALLOWED_ROLES)
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
-  const list = await prisma.sumpahTemplate.findMany({ orderBy: [{ agama: "asc" }, { versi: "asc" }] })
+  const dbList = await prisma.sumpahTemplate.findMany({ orderBy: [{ agama: "asc" }, { versi: "asc" }] })
+  const dbKeys = new Set(dbList.map((t) => `${t.agama}::${t.versi}`))
+
+  const localOnly = discoverLocalTemplates()
+    .filter((t) => !dbKeys.has(`${t.agama}::${t.versi}`))
+    .map((t) => ({
+      id: null,
+      agama: t.agama,
+      versi: t.versi,
+      updatedAt: null,
+      updatedBy: null,
+      source: "local" as const,
+    }))
+
+  const list = [
+    ...dbList.map((t) => ({ ...t, source: "db" as const })),
+    ...localOnly,
+  ].sort((a, b) => a.agama.localeCompare(b.agama) || a.versi.localeCompare(b.versi))
+
   return Response.json({ list, agamaOptions: AGAMA_LIST })
 }
 
 /**
- * Buat baris template baru. Dua mode:
+ * Buat baris template baru. Tiga mode:
+ * - Import dari file lokal server (form field "importLocal"="1") — buat baris
+ *   yang muncul di GET dengan source:"local", server yang baca filenya
+ *   sendiri (path ga pernah dipercaya dari client, di-resolve ulang lewat
+ *   findLocalTemplate berdasar agama+versi).
  * - Upload file .docx awal (form field "file") — sekali ini aja, edit
  *   selanjutnya lewat OnlyOffice.
  * - Clone dari template lain yang sudah ada (form field "cloneFromId") —
@@ -36,6 +67,7 @@ export async function POST(request: Request) {
   const versi = (formData.get("versi") as string || "").trim() || "standar"
   const cloneFromId = formData.get("cloneFromId") as string | null
   const file = formData.get("file") as File | null
+  const importLocal = formData.get("importLocal") === "1"
 
   if (!AGAMA_LIST.includes(agama as any)) {
     return Response.json({ error: "Agama tidak valid" }, { status: 400 })
@@ -53,7 +85,13 @@ export async function POST(request: Request) {
   }
 
   let buffer: Buffer
-  if (cloneFromId) {
+  if (importLocal) {
+    const localFile = findLocalTemplate(agama, safeVersi)
+    if (!localFile) {
+      return Response.json({ error: `File lokal untuk ${agama} versi "${safeVersi}" tidak ketemu lagi (mungkin sudah dipindah/dihapus)` }, { status: 404 })
+    }
+    buffer = readFileSync(join(process.cwd(), "templates/CEK", localFile.localPath))
+  } else if (cloneFromId) {
     const source = await prisma.sumpahTemplate.findUnique({ where: { id: cloneFromId } })
     if (!source) return Response.json({ error: "Template sumber clone tidak ditemukan" }, { status: 404 })
     buffer = await downloadFromMinio(TEMPLATE_BUCKET, source.fileKey)

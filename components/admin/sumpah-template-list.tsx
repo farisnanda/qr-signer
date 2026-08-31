@@ -2,19 +2,29 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { AlertTriangle, FilePlus2, Loader2, PenLine } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { AlertTriangle, FilePlus2, HardDrive, Loader2, PenLine } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 type Template = {
-  id: string
+  id: string | null
   agama: string
   versi: string
-  updatedAt: string
+  updatedAt: string | null
   updatedBy: string | null
+  source: "db" | "local"
 }
 
 const AGAMA_LIST = ["Islam", "Kristen", "Budha", "Hindu", "Katolik"] as const
 
 export function SumpahTemplateList() {
+  const router = useRouter()
   const [list, setList] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -27,6 +37,14 @@ export function SumpahTemplateList() {
   const [cloneFromId, setCloneFromId] = useState("")
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState("")
+
+  // Dialog "import dari server" — dipicu klik Edit di baris source:"local".
+  // Admin bisa konfirmasi/ubah label versi (mis. jadi "2022") sebelum file
+  // ditarik ke sistem & editor OnlyOffice dibuka.
+  const [importTarget, setImportTarget] = useState<Template | null>(null)
+  const [importVersi, setImportVersi] = useState("")
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState("")
 
   async function load() {
     setLoading(true)
@@ -84,6 +102,62 @@ export function SumpahTemplateList() {
     load()
   }
 
+  function openImportDialog(t: Template) {
+    setImportTarget(t)
+    setImportVersi(t.versi)
+    setImportError("")
+  }
+
+  async function handleImportAndEdit() {
+    if (!importTarget) return
+    const safeVersi = importVersi.trim()
+    if (!safeVersi) {
+      setImportError("Versi ga boleh kosong")
+      return
+    }
+
+    setImporting(true)
+    setImportError("")
+
+    const fd = new FormData()
+    fd.append("agama", importTarget.agama)
+    fd.append("versi", safeVersi)
+    fd.append("importLocal", "1")
+    // Path lokal ga pernah dipercaya dari client — server cari ulang sendiri
+    // berdasar agama+versi ASLI (importTarget.versi) lewat findLocalTemplate.
+    // Kalau admin ganti label versi di sini, itu cuma nama BARU-nya di DB;
+    // filenya tetap diambil dari lokasi lokal aslinya.
+    if (safeVersi !== importTarget.versi) {
+      fd.set("versi", importTarget.versi) // ambil file dari lokasi asli dulu
+    }
+
+    const res = await fetch("/qr-signer/api/admin/sumpah-template", { method: "POST", body: fd })
+    const data = await res.json()
+
+    if (!res.ok) {
+      setImporting(false)
+      setImportError(data.error || "Gagal import template")
+      return
+    }
+
+    // Kalau admin RENAME versi pas import (beda dari nama folder lokal),
+    // baris kepake nama folder lokal dulu — rename ke label final di sini.
+    let finalId = data.template.id
+    if (safeVersi !== importTarget.versi) {
+      const renameRes = await fetch(`/qr-signer/api/admin/sumpah-template/${finalId}/rename`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versi: safeVersi }),
+      })
+      const renameData = await renameRes.json()
+      if (renameRes.ok) finalId = renameData.template.id
+    }
+
+    setImporting(false)
+    setImportTarget(null)
+    router.push(`/admin/settings/sumpah-template/${finalId}`)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -102,7 +176,9 @@ export function SumpahTemplateList() {
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">{list.length} template terdaftar.</p>
+        <p className="text-sm text-slate-600">
+          {list.length} template ({list.filter((t) => t.source === "local").length} belum di-import dari server).
+        </p>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-800"
@@ -166,8 +242,8 @@ export function SumpahTemplateList() {
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">Pilih template sumber...</option>
-              {list.map((t) => (
-                <option key={t.id} value={t.id}>{t.agama} — {t.versi}</option>
+              {list.filter((t) => t.source === "db").map((t) => (
+                <option key={t.id} value={t.id!}>{t.agama} — {t.versi}</option>
               ))}
             </select>
           )}
@@ -190,28 +266,49 @@ export function SumpahTemplateList() {
             <tr>
               <th className="px-4 py-3">Agama</th>
               <th className="px-4 py-3">Versi</th>
+              <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Terakhir diubah</th>
-              <th className="px-4 py-3">Oleh</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {list.map((t) => (
-              <tr key={t.id}>
+              <tr key={`${t.source}-${t.agama}-${t.versi}`}>
                 <td className="px-4 py-3 font-semibold text-slate-900">{t.agama}</td>
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{t.versi}</span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{new Date(t.updatedAt).toLocaleString("id-ID")}</td>
-                <td className="px-4 py-3 text-slate-600">{t.updatedBy || "-"}</td>
+                <td className="px-4 py-3">
+                  {t.source === "local" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                      <HardDrive className="h-3 w-3" />
+                      File server, belum di-import
+                    </span>
+                  ) : (
+                    <span className="text-slate-600">
+                      {t.updatedAt ? new Date(t.updatedAt).toLocaleString("id-ID") : "-"} · {t.updatedBy || "-"}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-slate-600">{t.source === "local" ? "-" : ""}</td>
                 <td className="px-4 py-3 text-right">
-                  <Link
-                    href={`/admin/settings/sumpah-template/${t.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50"
-                  >
-                    <PenLine className="h-3.5 w-3.5" />
-                    Edit
-                  </Link>
+                  {t.source === "db" ? (
+                    <Link
+                      href={`/admin/settings/sumpah-template/${t.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-50"
+                    >
+                      <PenLine className="h-3.5 w-3.5" />
+                      Edit
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => openImportDialog(t)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                    >
+                      <PenLine className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -225,6 +322,39 @@ export function SumpahTemplateList() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={!!importTarget} onOpenChange={(open) => !open && setImportTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import template {importTarget?.agama}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-slate-600">
+              File ini masih di server (belum masuk sistem editor). Konfirmasi label versi-nya
+              dulu (mis. isi tahun) — abis ini langsung dibawa ke editor OnlyOffice.
+            </p>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-800">Versi (mis. tahun)</label>
+              <input
+                value={importVersi}
+                onChange={(e) => setImportVersi(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+              />
+            </div>
+            {importError && <p className="text-sm font-semibold text-red-700">{importError}</p>}
+          </div>
+          <DialogFooter>
+            <button
+              onClick={handleImportAndEdit}
+              disabled={importing}
+              className="flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {importing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {importing ? "Mengimpor..." : "Buka Editor"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
