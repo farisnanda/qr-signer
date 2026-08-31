@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+_to_delete
+*.log
+.env
+.env.*
+!.env.example
+outputs/image-to-excel/node_modules
