@@ -48,3 +48,43 @@ export function verifyOnlyOfficeJwt(token: string): Record<string, any> | null {
 export function newDocumentKey(): string {
   return randomBytes(16).toString("hex")
 }
+
+/**
+ * Token pendek buat proxy download docx (endpoint /raw) — GANTI presigned Minio URL.
+ * Alasan: OnlyOffice docservice (axios/follow-redirects) sering gagal 400 narik
+ * presigned URL SigV4 Minio langsung (signature mismatch akibat re-parse query
+ * string di axios), walau curl ke URL sama persis sukses. Token ini HMAC biasa,
+ * bukan AWS SigV4 — hindari seluruh kelas bug itu. App yang fetch ke Minio
+ * (server-to-server, pakai Minio SDK), bukan OnlyOffice.
+ */
+export function signDownloadToken(templateId: string, expiresInSec: number = 600): string {
+  const secret = getSecret()
+  const exp = Math.floor(Date.now() / 1000) + expiresInSec
+  const payload = `${templateId}.${exp}`
+  const encodedPayload = base64url(payload)
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url")
+  return `${encodedPayload}.${signature}`
+}
+
+export function verifyDownloadToken(token: string, templateId: string): boolean {
+  const secret = getSecret()
+  const parts = token.split(".")
+  if (parts.length !== 2) return false
+  const [encodedPayload, signature] = parts
+
+  let payload: string
+  try {
+    payload = Buffer.from(encodedPayload, "base64url").toString("utf8")
+  } catch {
+    return false
+  }
+
+  const expected = createHmac("sha256", secret).update(payload).digest("base64url")
+  if (expected !== signature) return false
+
+  const [id, expStr] = payload.split(".")
+  if (id !== templateId) return false
+  const exp = parseInt(expStr, 10)
+  if (!exp || Date.now() / 1000 > exp) return false
+  return true
+}

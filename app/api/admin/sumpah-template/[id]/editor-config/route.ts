@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { requireAdminRole } from "@/lib/security"
-import { getPresignedUrl } from "@/lib/minio"
-import { signOnlyOfficeJwt } from "@/lib/onlyoffice"
+import { signOnlyOfficeJwt, signDownloadToken } from "@/lib/onlyoffice"
 
 const ALLOWED_ROLES = ["SUPERADMIN", "ADMIN"] as const
-const TEMPLATE_BUCKET = "qr-signer-templates"
 
 // URL internal container-ke-container (network-sharing) buat OnlyOffice
 // manggil balik server ini — bukan URL publik, ga lewat reverse proxy host.
@@ -21,9 +19,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const template = await prisma.sumpahTemplate.findUnique({ where: { id } })
   if (!template) return Response.json({ error: "Template tidak ditemukan" }, { status: 404 })
 
-  // documentUrl dipakai OnlyOffice buat NARIK file sumber — presigned Minio,
-  // publik & reachable dari container OnlyOffice tanpa perlu jaringan internal.
-  const documentUrl = await getPresignedUrl(TEMPLATE_BUCKET, template.fileKey, 3600)
+  // documentUrl dipakai OnlyOffice buat NARIK file sumber — proxy lewat app
+  // sendiri (bukan presigned Minio langsung, lihat catatan di lib/onlyoffice.ts).
+  const downloadToken = signDownloadToken(template.id, 600)
+  const documentUrl = `${INTERNAL_APP_URL}/api/admin/sumpah-template/${template.id}/raw?token=${downloadToken}`
   const callbackUrl = `${INTERNAL_APP_URL}/api/admin/sumpah-template/${template.id}/callback`
 
   const config: Record<string, any> = {
