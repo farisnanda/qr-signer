@@ -8,3 +8,4 @@ private/
 
 # File lock sementara MS Office
 ~$*
+public/onlyoffice-tmp/*.docx
