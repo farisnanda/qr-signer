@@ -32,7 +32,7 @@ services:
       - ONLYOFFICE_CALLBACK_APP_URL=http://qr-signer:3000/qr-signer
       # URL publik (via reverse proxy host, LIHAT CATATAN SETUP di bawah) -
       # dipakai browser admin buat load script editor OnlyOffice.
-      - ONLYOFFICE_PUBLIC_URL=https://apps.bkd.jatimprov.go.id/onlyoffice
+      - ONLYOFFICE_PUBLIC_URL=https://bkd.jatimprov.go.id/onlyoffice
     volumes:
       - signer-uploads:/app/private/uploads
     depends_on:
