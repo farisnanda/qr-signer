@@ -39,7 +39,8 @@ export function getMinioClient(): Client {
 export async function uploadToMinio(
   bucket: string,
   objectName: string,
-  data: Buffer | Uint8Array
+  data: Buffer | Uint8Array,
+  contentType: string = "application/pdf"
 ): Promise<string> {
   try {
     const client = getMinioClient()
@@ -56,7 +57,7 @@ export async function uploadToMinio(
 
     // Upload dengan metadata (biar tracking lebih mudah)
     await client.putObject(bucket, objectName, buffer, buffer.length, {
-      "Content-Type": "application/pdf",
+      "Content-Type": contentType,
     })
 
     console.log(`[Minio] Upload sukses: ${bucket}/${objectName}`)
@@ -66,6 +67,9 @@ export async function uploadToMinio(
     throw new Error(`Gagal upload ke Minio: ${err?.message}`)
   }
 }
+
+/** Content-Type Word .docx — dipakai upload template SumpahTemplate (OnlyOffice). */
+export const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 /**
  * Generate presigned URL untuk download (publik, tanpa akses key).

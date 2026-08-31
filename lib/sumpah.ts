@@ -2,12 +2,20 @@ import { readFileSync } from "fs"
 import { join } from "path"
 import PizZip from "pizzip"
 import { PDFDocument } from "pdf-lib"
+import { prisma } from "@/lib/prisma"
+import { downloadFromMinio } from "@/lib/minio"
+
+const TEMPLATE_BUCKET = "qr-signer-templates"
 
 interface SumpahData {
   nama: string
   nip: string
   jabatan: string
   agama: "Islam" | "Kristen" | "Budha" | "Hindu" | "Katolik"
+  /** Opsional. Kosong = format standar (templates/CEK/<Agama>.docx, perilaku lama
+   *  tak berubah). Diisi = ambil dari subfolder templates/CEK/<versi>/<Agama>.docx
+   *  — dipakai buat fasilitasi peserta tahun/format lama yang beda dari standar. */
+  versi?: string
 }
 
 /**
@@ -29,11 +37,43 @@ function fillPlaceholders(xml: string, map: Record<string, string>): string {
   })
 }
 
-export async function generateSumpahDocx(data: SumpahData): Promise<Buffer> {
-  const templateDir = join(process.cwd(), "templates/CEK")
-  const templatePath = join(templateDir, `${data.agama}.docx`)
+/**
+ * Ambil buffer template .docx. Prioritas: baris SumpahTemplate di DB (dikelola
+ * lewat editor OnlyOffice di app) -> kalau ga ketemu, fallback file lokal
+ * templates/CEK/ (legacy, dari sebelum fitur editor ada — tetap didukung
+ * biar template lama yg belum dipindah ga mendadak error).
+ */
+async function loadTemplateBuffer(agama: string, versi: string | undefined): Promise<Buffer> {
+  const safeVersi = versi?.trim().replace(/[^a-zA-Z0-9_-]/g, "") || "standar"
 
-  const templateBuffer = readFileSync(templatePath)
+  const dbTemplate = await prisma.sumpahTemplate.findUnique({
+    where: { agama_versi: { agama, versi: safeVersi } },
+  })
+  if (dbTemplate) {
+    return downloadFromMinio(TEMPLATE_BUCKET, dbTemplate.fileKey)
+  }
+
+  // Fallback legacy: versi "standar" DB yg belum ada -> file default lama
+  // templates/CEK/<Agama>.docx; versi lain -> templates/CEK/<versi>/<Agama>.docx.
+  const templateDir =
+    safeVersi === "standar"
+      ? join(process.cwd(), "templates/CEK")
+      : join(process.cwd(), "templates/CEK", safeVersi)
+  const templatePath = join(templateDir, `${agama}.docx`)
+
+  try {
+    return readFileSync(templatePath)
+  } catch {
+    throw new Error(
+      safeVersi === "standar"
+        ? `Template tidak ditemukan untuk agama "${agama}" (cek SumpahTemplate DB atau templates/CEK/${agama}.docx)`
+        : `Template tidak ditemukan untuk versi "${safeVersi}" agama "${agama}" (cek SumpahTemplate DB atau templates/CEK/${safeVersi}/${agama}.docx)`
+    )
+  }
+}
+
+export async function generateSumpahDocx(data: SumpahData): Promise<Buffer> {
+  const templateBuffer = await loadTemplateBuffer(data.agama, data.versi)
   const zip = new PizZip(templateBuffer)
   const xmlString = zip.file("word/document.xml")?.asText()
 

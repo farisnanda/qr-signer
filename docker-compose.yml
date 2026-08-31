@@ -23,11 +23,44 @@ services:
       - MINIO_BUCKET=qr-signer-sk
       # MINIO_ACCESS_KEY=<user>  (set via docker run -e atau .env)
       # MINIO_SECRET_KEY=<pass>  (set via docker run -e atau .env)
+      # OnlyOffice - editor Word template BA Sumpah langsung di app.
+      # ONLYOFFICE_JWT_SECRET wajib SAMA PERSIS dengan JWT_SECRET di service
+      # onlyoffice-signer di bawah (shared secret dua arah).
+      - ONLYOFFICE_JWT_SECRET=${ONLYOFFICE_JWT_SECRET}
+      # URL internal container-ke-container (nama service Docker), dipakai
+      # OnlyOffice buat callback simpan balik ke app ini. JANGAN diisi URL publik.
+      - ONLYOFFICE_CALLBACK_APP_URL=http://qr-signer:3000/qr-signer
+      # URL publik (via reverse proxy host, LIHAT CATATAN SETUP di bawah) -
+      # dipakai browser admin buat load script editor OnlyOffice.
+      - ONLYOFFICE_PUBLIC_URL=https://apps.bkd.jatimprov.go.id/onlyoffice
     volumes:
       - signer-uploads:/app/private/uploads
     depends_on:
       - signer-db
       - gotenberg-signer
+      - onlyoffice-signer
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  onlyoffice-signer:
+    image: onlyoffice/documentserver:latest
+    container_name: onlyoffice-signer
+    environment:
+      - JWT_ENABLED=true
+      - JWT_SECRET=${ONLYOFFICE_JWT_SECRET}
+      - JWT_HEADER=Authorization
+      - JWT_IN_BODY=true
+    # Port host 8082 cuma buat akses langsung/testing. Produksi WAJIB lewat
+    # reverse proxy host (nginx) di path /onlyoffice/ -> localhost:8082,
+    # biar browser admin bisa load lewat domain HTTPS yang sama (hindari
+    # mixed-content & CORS). Ini di LUAR repo ini, setup manual di server.
+    ports:
+      - "8082:80"
+    volumes:
+      - onlyoffice-data:/var/www/onlyoffice/Data
+      - onlyoffice-log:/var/log/onlyoffice
+      - onlyoffice-cache:/var/lib/onlyoffice/documentserver/App_Data/cache/files
     networks:
       - network-sharing
     restart: unless-stopped
@@ -63,3 +96,6 @@ networks:
 volumes:
   signer-db-data:
   signer-uploads:
+  onlyoffice-data:
+  onlyoffice-log:
+  onlyoffice-cache:

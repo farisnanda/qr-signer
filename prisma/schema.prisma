@@ -165,3 +165,23 @@ model MaintenanceMode {
   updatedBy     String?
   updatedAt     DateTime  @updatedAt
 }
+
+/// Template Word BA Sumpah, dikelola lewat editor OnlyOffice di app (bukan
+/// upload file lagi). Satu baris per kombinasi agama+versi. versi="standar"
+/// = format default aktif sekarang; versi lain = format tahun/kondisi lama
+/// (dipilih peserta lewat kolom Excel "versi" saat generate, lihat lib/sumpah.ts).
+/// fileKey = path Minio (docx). documentKey berubah tiap kali disimpan dari
+/// OnlyOffice — dipakai buat cache-busting biar OnlyOffice/browser ga nyangkut
+/// versi lama pas dibuka lagi.
+model SumpahTemplate {
+  id          String   @id @default(cuid())
+  agama       String
+  versi       String   @default("standar")
+  fileKey     String
+  documentKey String
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([agama, versi])
+}

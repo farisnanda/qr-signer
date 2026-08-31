@@ -108,6 +108,10 @@ export function SumpahUploadForm() {
                   {file ? file.name : "Klik untuk pilih file Excel"}
                 </p>
                 <p className="text-xs text-slate-500">Format: .xlsx, .xls</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Kolom wajib: nama, nip, agama, pangkat. Kolom opsional: <span className="font-mono">versi</span>
+                  {" "}(isi kalau peserta itu pakai format BA lama/beda, mis. "2023" — kosongkan buat format standar).
+                </p>
               </div>
               <input
                 type="file"

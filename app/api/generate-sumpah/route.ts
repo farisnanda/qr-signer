@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const buffer = await file.arrayBuffer()
   const workbook = read(buffer)
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const rows = utils.sheet_to_json<{ nama: string; nip: string; agama: string; pangkat: string }>(sheet)
+  const rows = utils.sheet_to_json<{ nama: string; nip: string; agama: string; pangkat: string; versi?: string }>(sheet)
 
   if (rows.length === 0) {
     return Response.json({ error: "Excel kosong" }, { status: 400 })
@@ -60,6 +60,9 @@ export async function POST(request: Request) {
           const nip = row.nip?.toString().trim()
           const agama = row.agama?.trim() as "Islam" | "Kristen" | "Budha" | "Hindu" | "Katolik" | undefined
           const pangkat = row.pangkat?.trim()
+          // Kolom Excel opsional. Kosong = format standar (perilaku lama).
+          // Diisi = pakai template varian, contoh isi: "2023", "lama".
+          const versi = row.versi?.toString().trim() || undefined
 
           if (!nama || !nip || !agama || !pangkat) {
             errorCount++
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
           try {
             const jabatan = getJabatan(pangkat)
             const pdfBuffer = await generateSumpahPdf(
-              { nama, nip, jabatan, agama },
+              { nama, nip, jabatan, agama, versi },
               { singlePage }
             )
 

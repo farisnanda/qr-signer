@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { LayoutDashboard, PenSquare, Users, Shield, History, Upload, FileText, UserCheck, KeyRound, FileEdit, Wrench, type LucideIcon } from "lucide-react"
+import { LayoutDashboard, PenSquare, Users, Shield, History, Upload, FileText, UserCheck, KeyRound, FileEdit, Wrench, FileType, type LucideIcon } from "lucide-react"
 
 type Props = { serverSession?: any }
 
@@ -39,6 +39,7 @@ export function Sidebar({ serverSession }: Props) {
     { href: "/admin/riwayat-sign", label: "Riwayat Sign", icon: History, show: isSekretariat },
     { href: "/admin/users", label: "Manage User", icon: Users, show: role === "SUPERADMIN" },
     { href: "/admin/settings/maintenance", label: "Maintenance", icon: Wrench, show: role === "SUPERADMIN" || role === "ADMIN" },
+    { href: "/admin/settings/sumpah-template", label: "Template BA Sumpah", icon: FileType, show: role === "SUPERADMIN" || role === "ADMIN" },
   ]
 
   function itemClass(active: boolean) {
