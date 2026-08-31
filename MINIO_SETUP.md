@@ -13,7 +13,7 @@ MINIO_SECRET_KEY=bkdjatimadmin!23
 
 File `.env` (sudah di-repo):
 ```
-MINIO_ENDPOINT=siasn.bdk.jatimprov.go.id
+MINIO_ENDPOINT=siasn.bkd.jatimprov.go.id
 MINIO_PORT=9000
 MINIO_BUCKET=qr-signer-sk
 ```
@@ -72,7 +72,7 @@ echo "bkdjatimadmin!23" | docker secret create minio_secret_key -
 **Pastikan Minio server dapat diakses:**
 ```bash
 node -e '
-const b="siasn.bdk.jatimprov.go.id:9000";
+const b="siasn.bkd.jatimprov.go.id:9000";
 fetch("http://"+b,{headers:{"Authorization":"Basic "+Buffer.from("bkdjatim:bkdjatimadmin!23").toString("base64")}})
 .then(r=>console.log("Status:",r.status))
 .catch(e=>console.log("Error:",e.cause?.code||e.message))
@@ -81,7 +81,7 @@ fetch("http://"+b,{headers:{"Authorization":"Basic "+Buffer.from("bkdjatim:bkdja
 
 Atau gunakan Minio CLI:
 ```bash
-mcli --insecure alias set bkd https://siasn.bdk.jatimprov.go.id:9000 bkdjatim bkdjatimadmin!23
+mcli --insecure alias set bkd https://siasn.bkd.jatimprov.go.id:9000 bkdjatim bkdjatimadmin!23
 mcli ls bkd/qr-signer-sk
 ```
 
