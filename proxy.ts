@@ -26,7 +26,7 @@ function redirectTo(req: NextRequest, pathname: string) {
   return NextResponse.redirect(url)
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   const pathname = req.nextUrl.pathname
   const isPeserta = (token as any)?.kind === "peserta"
