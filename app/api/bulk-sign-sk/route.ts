@@ -293,7 +293,7 @@ export async function POST(req: Request) {
         }
         const docMetas: DocMeta[] = []
 
-        const BATCH_SIZE = 24 // server kuat (32 core/128GB) - 6x Gotenberg paralel, convert ga antre lagi
+        const BATCH_SIZE = 32 // server kuat (32 core/128GB) - 16x Gotenberg paralel
         let genProcessed = 0
 
         // FASE 1 — Generate PDF dari template (+ QR verifikasi milik kita).

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useCallback } from "react"
@@ -22,6 +22,7 @@ type Batch = {
   reportFileName: string | null
   signedBy: string
   createdAt: string
+  status: string
 }
 
 type Props = {
@@ -32,6 +33,8 @@ type Props = {
 }
 
 function BatchTable({ batch }: { batch: Batch }) {
+  const isProcessing = batch.status === "processing"
+  const isSpmt = batch.jenisSk === "SPMT 2026"
   const [logPage, setLogPage] = useState(1)
   const [logs, setLogs] = useState<Log[]>([])
   const [totalLogs, setTotalLogs] = useState(0)
@@ -52,8 +55,8 @@ function BatchTable({ batch }: { batch: Batch }) {
   }, [batch.id])
 
   useEffect(() => {
-    fetchLogs(1)
-  }, [fetchLogs])
+    if (!isProcessing) fetchLogs(1)
+  }, [fetchLogs, isProcessing])
 
   function formatTime(dateStr: string) {
     return new Date(dateStr).toLocaleString("id-ID", {
@@ -74,7 +77,9 @@ function BatchTable({ batch }: { batch: Batch }) {
             <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
               {batch.jenisSk}
             </span>
-            {batch.errorCount === 0 ? (
+            {isProcessing ? (
+              <span className="rounded-lg bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">⏳ Belum Selesai (Terputus)</span>
+            ) : batch.errorCount === 0 ? (
               <span className="rounded-lg bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">✓ Semua Berhasil</span>
             ) : batch.successCount === 0 ? (
               <span className="rounded-lg bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">✗ Semua Gagal</span>
@@ -112,12 +117,31 @@ function BatchTable({ batch }: { batch: Batch }) {
               📊 Laporan
             </a>
           )}
+          {isProcessing && isSpmt && (
+            <>
+              <a href={`/qr-signer/api/bulk-sign-spmt/partial/${batch.batchCode}`} download
+                className="rounded-xl border-2 border-amber-500 bg-white px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition">
+                ⬇ Parsial
+              </a>
+              <a href={`/admin/bulk-sign-spmt?resume=${batch.batchCode}`}
+                className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-medium text-white hover:bg-amber-700 transition">
+                ↻ Lanjutkan
+              </a>
+            </>
+          )}
         </div>
       </div>
 
       {/* Tabel dokumen */}
       <div className="overflow-x-auto">
-        {loading ? (
+        {isProcessing ? (
+          <div className="px-6 py-8 text-sm text-amber-700 bg-amber-50">
+            ⏳ Batch ini belum selesai — sesi produksi terputus sebelum semua dokumen jadi/ter-zip.
+            {isSpmt
+              ? " Dokumen yang sudah jadi bisa diunduh lewat tombol “Parsial” di atas, atau klik “Lanjutkan” untuk meneruskan produksi (pakai Excel & Info Batch yang SAMA persis dengan yang dipakai pertama kali)."
+              : " Jenis dokumen ini belum punya fitur pemulihan otomatis — hubungi admin sistem."}
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-10">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-700" />
             <span className="ml-2 text-sm text-slate-400">Memuat...</span>

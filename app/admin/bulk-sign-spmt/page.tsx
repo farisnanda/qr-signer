@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
@@ -84,6 +84,18 @@ export default function BulkSignSpmtPage() {
 
   useEffect(() => {
     return () => { if (checkPdfUrlRef.current) URL.revokeObjectURL(checkPdfUrlRef.current) }
+  }, [])
+
+  // Datang dari link "Lanjutkan" di Riwayat Sign (?resume=<batchCode>) — batch ini
+  // kepotong sesi sebelumnya. Tampilkan panel "Proses Terputus" langsung, tinggal user
+  // isi ulang Excel + Info Batch yang SAMA lalu klik Lanjutkan.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const resumeId = params.get("resume")
+    if (resumeId) {
+      setCurrentBatchId(resumeId)
+      setInterrupted(true)
+    }
   }, [])
 
   function buildBaseFormData() {

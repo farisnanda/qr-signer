@@ -1,4 +1,4 @@
-import { getServerSession } from "next-auth"
+﻿import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
@@ -39,6 +39,7 @@ export default async function RiwayatSignPage({
         reportFileName: true,
         signedBy: true,
         createdAt: true,
+        status: true,
       },
     }),
   ])
