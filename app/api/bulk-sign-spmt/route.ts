@@ -115,7 +115,7 @@ function getRowData(row: any, rowOrderIndex: number, batch: BatchInfo): { nip: s
 
   const gelarDepan = String(row["Gelar Depan"] || "").trim()
   const gelarBelakang = String(row["Gelar Belakang"] || "").trim()
-  const nomorSurat = String(batch.nomorSuratAwal + rowOrderIndex)
+  const nomorSurat = String(batch.nomorSuratAwal) // satu nomor sama utk semua peserta di batch ini
 
   const data: Record<string, string> = {
     gelar_depan: gelarDepan,

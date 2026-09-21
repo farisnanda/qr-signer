@@ -14,7 +14,7 @@ function todayInput() {
 export default function BulkSignSpmtPage() {
   const [excelFile, setExcelFile] = useState<File | null>(null)
 
-  // Info batch — sama untuk semua peserta dalam satu kali produksi, nomor surat auto-urut dari nilai awal.
+  // Info batch — sama untuk semua peserta dalam satu kali produksi, termasuk nomor surat (satu nomor kolektif, bukan per-orang).
   const [nomorSuratAwal, setNomorSuratAwal] = useState("")
   const [nomorSkPengangkatan, setNomorSkPengangkatan] = useState("")
   const [tanggalSkPengangkatan, setTanggalSkPengangkatan] = useState(todayInput())
@@ -91,7 +91,7 @@ export default function BulkSignSpmtPage() {
 
   function validateBeforeSubmit(): string {
     if (!excelFile) return "File Excel wajib diupload"
-    if (!nomorSuratAwal) return "Nomor surat awal wajib diisi"
+    if (!nomorSuratAwal) return "Nomor surat wajib diisi"
     if (!nomorSkPengangkatan) return "Nomor SK pengangkatan wajib diisi"
     if (!tanggalSkPengangkatan || !tanggalMulaiTugas || !tanggalSurat) return "Tanggal SK pengangkatan, tanggal mulai tugas, dan tanggal surat wajib diisi"
     return ""
@@ -353,7 +353,7 @@ export default function BulkSignSpmtPage() {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Nomor Surat Awal <span className="text-red-500">*</span>
+                  Nomor Surat <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -364,7 +364,7 @@ export default function BulkSignSpmtPage() {
                   className="w-full rounded-lg border px-4 py-2 text-sm"
                 />
                 <p className="mt-1 text-xs text-slate-400">
-                  Nomor surat = 800.1.13.2/<b>{nomorSuratAwal || "n"}</b>/204/2026, auto-urut naik mengikuti urutan baris Excel.
+                  Nomor surat = 800.1.13.2/<b>{nomorSuratAwal || "n"}</b>/204/2026, satu nomor sama dipakai semua peserta di batch ini.
                 </p>
               </div>
 
@@ -564,7 +564,7 @@ export default function BulkSignSpmtPage() {
               <span><span className="font-mono">{"{pendidikan}"}</span> ← Pendidikan</span>
               <span><span className="font-mono">{"{jabatan}"}</span> ← Jabatan</span>
               <span><span className="font-mono">{"{unit_kerja_pkspmt}"}</span> ← Unit Kerja PK-SPMT</span>
-              <span><span className="font-mono">{"{nomor_surat}"}</span> ← auto-urut dari Nomor Surat Awal</span>
+              <span><span className="font-mono">{"{nomor_surat}"}</span> ← Nomor Surat (sama semua peserta)</span>
               <span><span className="font-mono">{"{nomor_sk_pengangkatan}"}</span>, <span className="font-mono">{"{tanggal_sk_pengangkatan}"}</span>, <span className="font-mono">{"{tanggal_mulai_tugas}"}</span>, <span className="font-mono">{"{tanggal_surat}"}</span> ← Info Batch</span>
             </div>
           </div>
