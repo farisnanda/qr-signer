@@ -14,6 +14,7 @@ import { checkUserStatusV2, signPdfV2 } from "@/lib/bsre"
 import { publicVerifyUrl } from "@/lib/urls"
 import { uploadToMinio, getPresignedUrl } from "@/lib/minio"
 import { requireAdminRole, isSuperAdmin } from "@/lib/security"
+import { convertDocxToPdfPooled } from "@/lib/gotenberg-pool"
 
 const MINIO_BUCKET = process.env.MINIO_BUCKET || "qr-signer-sk"
 
@@ -41,27 +42,7 @@ function formatTanggalFile(isoDate: string): string {
   return `${dd}${mm}${d.getFullYear()}`
 }
 
-async function convertDocxToPdf(docxBuffer: Buffer, fileName: string): Promise<Buffer> {
-  const gotenbergUrl = process.env.GOTENBERG_URL || "http://localhost:3001"
-  const arrayBuffer = docxBuffer.buffer.slice(
-    docxBuffer.byteOffset,
-    docxBuffer.byteOffset + docxBuffer.byteLength
-  ) as ArrayBuffer
-  const form = new FormData()
-  const blob = new Blob([arrayBuffer], {
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  })
-  form.append("files", blob, fileName)
-  const res = await fetch(`${gotenbergUrl}/forms/libreoffice/convert`, {
-    method: "POST",
-    body: form,
-  })
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`Gotenberg error: ${res.status} - ${errText}`)
-  }
-  return Buffer.from(await res.arrayBuffer())
-}
+const convertDocxToPdf = convertDocxToPdfPooled
 
 async function injectQrToPdf(
   pdfBuffer: Buffer,
@@ -401,7 +382,7 @@ export async function POST(req: Request) {
         }
         const docMetas: DocMeta[] = []
 
-        const BATCH_SIZE = 20 // server kuat (32 core/128GB) - naikin dari 6
+        const BATCH_SIZE = 24 // server kuat (32 core/128GB) - 6x Gotenberg paralel, convert ga antre lagi
         let genProcessed = 0
 
         async function generateRow(row: any, rowIndex: number) {

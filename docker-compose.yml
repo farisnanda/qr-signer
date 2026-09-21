@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   signer:
@@ -11,6 +11,9 @@ services:
       - NEXTAUTH_SECRET=c456f6a85b7765b23a44a49a070b85b613bea62cf501f3b58eee750c979cdfc0
       - NEXTAUTH_URL=https://apps.bkd.jatimprov.go.id/qr-signer
       - GOTENBERG_URL=http://gotenberg-signer:3000
+      # Pool beberapa instance Gotenberg biar convert DOCX->PDF beneran paralel
+      # (satu Gotenberg cuma punya 1 engine LibreOffice, convert-nya antre kalau cuma 1).
+      - GOTENBERG_URLS=http://gotenberg-signer:3000,http://gotenberg-signer-2:3000,http://gotenberg-signer-3:3000,http://gotenberg-signer-4:3000,http://gotenberg-signer-5:3000,http://gotenberg-signer-6:3000
       - UV_THREADPOOL_SIZE=32
       # Base URL BSrE Esign Client Service (akses via IP VPS yang di-whitelist).
       # Ini environment DEV; ganti ke URL produksi saat go-live.
@@ -39,6 +42,11 @@ services:
     depends_on:
       - signer-db
       - gotenberg-signer
+      - gotenberg-signer-2
+      - gotenberg-signer-3
+      - gotenberg-signer-4
+      - gotenberg-signer-5
+      - gotenberg-signer-6
       - onlyoffice-signer
     networks:
       - network-sharing
@@ -86,6 +94,51 @@ services:
     container_name: gotenberg-signer
     ports:
       - "3000:3000"
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  gotenberg-signer-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.gotenberg
+    container_name: gotenberg-signer-2
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  gotenberg-signer-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.gotenberg
+    container_name: gotenberg-signer-3
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  gotenberg-signer-4:
+    build:
+      context: .
+      dockerfile: Dockerfile.gotenberg
+    container_name: gotenberg-signer-4
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  gotenberg-signer-5:
+    build:
+      context: .
+      dockerfile: Dockerfile.gotenberg
+    container_name: gotenberg-signer-5
+    networks:
+      - network-sharing
+    restart: unless-stopped
+
+  gotenberg-signer-6:
+    build:
+      context: .
+      dockerfile: Dockerfile.gotenberg
+    container_name: gotenberg-signer-6
     networks:
       - network-sharing
     restart: unless-stopped
