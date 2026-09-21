@@ -401,7 +401,7 @@ export async function POST(req: Request) {
         }
         const docMetas: DocMeta[] = []
 
-        const BATCH_SIZE = 6
+        const BATCH_SIZE = 20 // server kuat (32 core/128GB) - naikin dari 6
         let genProcessed = 0
 
         async function generateRow(row: any, rowIndex: number) {
