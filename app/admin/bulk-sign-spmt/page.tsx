@@ -61,6 +61,13 @@ export default function BulkSignSpmtPage() {
   const [checkPdfUrl, setCheckPdfUrl] = useState<string | null>(null)
   const checkPdfUrlRef = useRef<string | null>(null)
 
+  // Batch besar (ribuan baris) bisa kena putus koneksi di tengah jalan. batchId dari server
+  // dipakai buat download dokumen yang udah jadi (parsial) dan buat tombol "Lanjutkan".
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null)
+  const [interrupted, setInterrupted] = useState(false)
+  // Set sebelum modal 2FA/TTE dibuka, biar modal tahu ini submit baru atau lanjutan (resume).
+  const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
+
   useEffect(() => {
     setCheckedOk(false)
     setCheckError("")
@@ -135,6 +142,29 @@ export default function BulkSignSpmtPage() {
     if (v) { setError(v); return }
     if (!checkedOk) { setError("Cek dokumen peserta nomor 1 dulu sebelum produksi seluruhnya"); return }
 
+    // Produksi baru (bukan lanjutan) — lupakan batch lama yang mungkin masih nyangkut kepotong.
+    setCurrentBatchId(null)
+    setInterrupted(false)
+    setPendingResumeId(null)
+
+    const sessionRes = await fetch("/qr-signer/api/auth/session")
+    const sessionData = await sessionRes.json()
+    const hasTwoFactor = sessionData?.user?.twoFactorEnabled
+
+    if (hasTwoFactor) {
+      setShowTwoFactorModal(true)
+    } else {
+      proceedAfterAuth()
+    }
+  }
+
+  // Lanjutkan batch yang terputus — pakai Excel & Info Batch yang sama persis (masih ada di form),
+  // server cocokin per NIP dan skip yang sudah jadi.
+  async function handleLanjutkan() {
+    if (!currentBatchId) return
+    setInterrupted(false)
+    setPendingResumeId(currentBatchId)
+
     const sessionRes = await fetch("/qr-signer/api/auth/session")
     const sessionData = await sessionRes.json()
     const hasTwoFactor = sessionData?.user?.twoFactorEnabled
@@ -151,7 +181,7 @@ export default function BulkSignSpmtPage() {
       setTteError("")
       setShowTteModal(true)
     } else {
-      handleSubmit()
+      handleSubmit(pendingResumeId || undefined)
     }
   }
 
@@ -190,23 +220,27 @@ export default function BulkSignSpmtPage() {
     }
     setShowTteModal(false)
     setTteError("")
-    handleSubmit()
+    handleSubmit(pendingResumeId || undefined)
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(resumeId?: string) {
     setLoading(true)
     setError("")
-    setResults([])
-    setSummary(null)
-    setProgressPercent(0)
-    setProcessedRows(0)
-    setTotalRows(0)
+    setInterrupted(false)
+    if (!resumeId) {
+      setResults([])
+      setSummary(null)
+      setProgressPercent(0)
+      setProcessedRows(0)
+      setTotalRows(0)
+    }
     setPhaseLabel("")
-    setProgress("Menghubungkan ke server...")
+    setProgress(resumeId ? "Menyambung ke batch sebelumnya..." : "Menghubungkan ke server...")
 
     try {
       const formData = buildBaseFormData()
-      formData.append("mode", "full")
+      formData.append("mode", resumeId ? "resume" : "full")
+      if (resumeId) formData.append("batchId", resumeId)
       formData.append("useTte", String(useTte))
       if (useTte) {
         formData.append("bsreUsername", tte.username)
@@ -225,6 +259,8 @@ export default function BulkSignSpmtPage() {
       if (!res.ok || !res.body) {
         const err = await res.json()
         setError(err.error || "Terjadi kesalahan")
+        if (resumeId) setCurrentBatchId(resumeId) // biar tombol lanjutkan/download parsial tetap muncul
+        setInterrupted(true)
         return
       }
 
@@ -247,6 +283,7 @@ export default function BulkSignSpmtPage() {
 
             if (data.type === "start") {
               setTotalRows(data.total)
+              setCurrentBatchId(data.batchId || null)
               setPhaseLabel(data.tte ? "Membuat dokumen" : "")
               setProgress(data.tte ? "Membuat dokumen..." : "Generating PDF...")
             }
@@ -290,17 +327,23 @@ export default function BulkSignSpmtPage() {
                 downloadUrl: data.downloadUrl,
                 reportUrl: data.reportUrl,
               })
+              setCurrentBatchId(null) // sudah difinalisasi, folder batch di server sudah dihapus
+              setInterrupted(false)
               setProgress("")
             }
 
             if (data.type === "error") {
               setError(data.error || "Terjadi kesalahan")
+              setInterrupted(true) // dokumen yg sudah jadi masih ada di server, bisa didownload/dilanjutkan
             }
           } catch {}
         }
       }
     } catch {
-      setError("Terjadi kesalahan koneksi")
+      // Koneksi putus di tengah jalan (bukan error dari server) — dokumen yang sudah jadi
+      // tetap tersimpan di server (folder batch belum dihapus), bisa didownload/dilanjutkan.
+      setError("Koneksi terputus di tengah proses")
+      setInterrupted(true)
     } finally {
       setLoading(false)
       setProgress("")
@@ -572,6 +615,37 @@ export default function BulkSignSpmtPage() {
 
         {/* HASIL / PREVIEW */}
         <div className="space-y-4">
+          {interrupted && currentBatchId && (
+            <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 space-y-3">
+              <div>
+                <p className="font-bold text-amber-800">⚠ Proses Terputus</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  {error || "Koneksi terputus"} — sudah {processedRows} dari {totalRows || "?"} dokumen selesai dibuat.
+                  Dokumen yang sudah jadi masih tersimpan di server, tidak hilang.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <a
+                  href={`/qr-signer/api/bulk-sign-spmt/partial/${currentBatchId}`}
+                  download
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-amber-600 bg-white py-2.5 text-sm font-medium text-amber-700 hover:bg-amber-100 transition"
+                >
+                  ⬇ Download Yang Sudah Jadi
+                </a>
+                <button
+                  onClick={handleLanjutkan}
+                  disabled={loading}
+                  className="flex-1 rounded-xl bg-amber-600 py-2.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  ↻ Lanjutkan dari Sini
+                </button>
+              </div>
+              <p className="text-xs text-amber-600">
+                "Lanjutkan" pakai Excel &amp; Info Batch yang masih terisi di form kiri — jangan diubah, server akan skip peserta yang sudah selesai.
+              </p>
+            </div>
+          )}
+
           {checkPdfUrl && !summary && (
             <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
               <div className="border-b px-4 py-3">

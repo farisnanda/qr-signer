@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma"
 import { checkUserStatusV2, signPdfV2 } from "@/lib/bsre"
 import { publicVerifyUrl } from "@/lib/urls"
 import { uploadToMinio, getPresignedUrl } from "@/lib/minio"
-import { requireAdminRole } from "@/lib/security"
+import { requireAdminRole, isSuperAdmin } from "@/lib/security"
 
 const MINIO_BUCKET = process.env.MINIO_BUCKET || "qr-signer-sk"
 
@@ -147,6 +147,44 @@ function renderDocx(templateBuffer: Buffer, data: Record<string, string>): Buffe
   return zip.generate({ type: "nodebuffer", compression: "DEFLATE" })
 }
 
+// ---- Manifest resume ----
+// Ditulis ke <batchDir>/_manifest.json, dipakai buat tahu dokumen mana yang sudah kelar
+// kalau proses terputus (koneksi putus, server restart, dst) dan admin klik "Lanjutkan".
+// phase "generated" = PDF sudah jadi tapi (kalau TTE aktif) belum ditandatangani.
+// phase "signed"    = sudah final (sudah TTE, atau TTE memang tidak dipakai).
+type ManifestEntry = {
+  fileName: string
+  nama: string
+  documentNo: string
+  verifyToken: string | null
+  phase: "generated" | "signed"
+}
+type Manifest = Record<string, ManifestEntry> // key = NIP
+
+function manifestPath(batchDir: string) {
+  return path.join(batchDir, "_manifest.json")
+}
+
+function readManifest(batchDir: string): Manifest {
+  try {
+    const raw = fs.readFileSync(manifestPath(batchDir), "utf-8")
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+}
+
+function writeManifest(batchDir: string, manifest: Manifest) {
+  try {
+    const p = manifestPath(batchDir)
+    const tmp = `${p}.tmp`
+    fs.writeFileSync(tmp, JSON.stringify(manifest))
+    fs.renameSync(tmp, p) // atomic, hindari file manifest korup kalau proses mati di tengah nulis
+  } catch (err: any) {
+    console.error("[SPMT MANIFEST WRITE ERROR]", err?.message)
+  }
+}
+
 type ResultItem = {
   no: number
   nip: string
@@ -164,8 +202,9 @@ export async function POST(req: Request) {
   }
 
   const formData = await req.formData()
-  const mode = ((formData.get("mode") as string) || "full") as "check" | "full"
+  const mode = ((formData.get("mode") as string) || "full") as "check" | "full" | "resume"
   const excelFile = formData.get("excel") as File
+  const resumeBatchId = ((formData.get("batchId") as string) || "").trim()
 
   const nomorSuratAwal = parseInt((formData.get("nomorSuratAwal") as string) || "", 10)
   const nomorSkPengangkatan = ((formData.get("nomorSkPengangkatan") as string) || "").trim()
@@ -194,12 +233,15 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "File Excel wajib diupload" }), { status: 400 })
   }
   if (!nomorSuratAwal || !nomorSkPengangkatan || !tanggalSkPengangkatanRaw || !tanggalMulaiTugasRaw || !tanggalSuratRaw) {
-    return new Response(JSON.stringify({ error: "Nomor surat awal, nomor & tanggal SK pengangkatan, tanggal mulai tugas, dan tanggal surat wajib diisi" }), { status: 400 })
+    return new Response(JSON.stringify({ error: "Nomor surat, nomor & tanggal SK pengangkatan, tanggal mulai tugas, dan tanggal surat wajib diisi" }), { status: 400 })
   }
-  if (mode === "full" && useTte && (!bsreUsername || !bsrePassword || !nik || !passphrase)) {
+  if (mode === "resume" && !resumeBatchId) {
+    return new Response(JSON.stringify({ error: "batchId wajib diisi untuk melanjutkan proses" }), { status: 400 })
+  }
+  if (mode !== "check" && useTte && (!bsreUsername || !bsrePassword || !nik || !passphrase)) {
     return new Response(JSON.stringify({ error: "Kredensial TTE (username, password, NIK, passphrase) wajib diisi" }), { status: 400 })
   }
-  if (mode === "full" && useTte && !bsreBaseUrl) {
+  if (mode !== "check" && useTte && !bsreBaseUrl) {
     return new Response(JSON.stringify({ error: "BSRE_BASE_URL belum dikonfigurasi di server" }), { status: 500 })
   }
 
@@ -251,7 +293,10 @@ export async function POST(req: Request) {
     }
   }
 
-  // MODE FULL — produksi seluruh baris, streaming progress via SSE (sama pola dgn bulk-sign-sk).
+  // MODE FULL / RESUME — produksi baris, streaming progress via SSE.
+  // Batch folder + manifest TIDAK dihapus sampai finalisasi (zip+upload) sukses, jadi kalau
+  // koneksi putus di tengah jalan, dokumen yang sudah jadi tetap ada di server dan bisa
+  // dilanjutkan (mode=resume) atau diunduh apa adanya (lihat /api/bulk-sign-spmt/partial/[batchId]).
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -267,9 +312,48 @@ export async function POST(req: Request) {
         const outputDir = path.join(uploadsDir, "bulk_sk")
         if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true })
 
-        const batchId = uuidv4()
-        const batchDir = path.join(outputDir, batchId)
-        fs.mkdirSync(batchDir, { recursive: true })
+        let batchId: string
+        let batchDir: string
+        let manifest: Manifest = {}
+        let batchRecordId: string
+
+        if (mode === "resume") {
+          const existing = await prisma.signBatch.findFirst({
+            where: { batchCode: resumeBatchId, jenisSk: JENIS_SPMT, status: "processing" },
+          })
+          if (!existing) {
+            send({ type: "error", error: "Batch yang mau dilanjutkan tidak ditemukan (mungkin sudah selesai atau ID salah)" })
+            return
+          }
+          if (!isSuperAdmin(session as any) && existing.signedBy !== session.user.email) {
+            send({ type: "error", error: "Batch ini bukan milikmu, tidak bisa dilanjutkan" })
+            return
+          }
+          batchId = resumeBatchId
+          batchDir = path.join(outputDir, batchId)
+          if (!fs.existsSync(batchDir)) {
+            send({ type: "error", error: "Folder dokumen batch ini sudah tidak ada di server, tidak bisa dilanjutkan. Mulai batch baru." })
+            return
+          }
+          batchRecordId = existing.id
+          manifest = readManifest(batchDir)
+        } else {
+          batchId = uuidv4()
+          batchDir = path.join(outputDir, batchId)
+          fs.mkdirSync(batchDir, { recursive: true })
+          const created = await prisma.signBatch.create({
+            data: {
+              batchCode: batchId,
+              jenisSk: JENIS_SPMT,
+              total: rows.length,
+              successCount: 0,
+              errorCount: 0,
+              status: "processing",
+              signedBy: session.user.email!,
+            },
+          })
+          batchRecordId = created.id
+        }
 
         const total = rows.length
 
@@ -286,7 +370,7 @@ export async function POST(req: Request) {
           }
         }
 
-        send({ type: "start", total, tte: useTte })
+        send({ type: "start", total, tte: useTte, batchId, resumed: mode === "resume" })
 
         type DocMeta = {
           no: number
@@ -297,6 +381,7 @@ export async function POST(req: Request) {
           documentNo: string
           title: string
           ok: boolean
+          alreadySigned: boolean
           error?: string
         }
         const docMetas: DocMeta[] = []
@@ -310,6 +395,19 @@ export async function POST(req: Request) {
 
           const { nip, nama, data } = parsed
           const fileName = `${FILE_PREFIX}_${dateStr}_${nip}.pdf`
+
+          // Sudah pernah sukses digenerate di attempt sebelumnya (resume) — jangan render ulang.
+          const existing = manifest[nip]
+          if (existing && fs.existsSync(path.join(batchDir, existing.fileName))) {
+            docMetas.push({
+              no: rowIndex + 1, nip, nama, fileName: existing.fileName, verifyToken: existing.verifyToken,
+              documentNo: existing.documentNo, title: `${JENIS_SPMT} - ${nama}`, ok: true,
+              alreadySigned: existing.phase === "signed",
+            })
+            genProcessed++
+            send({ type: "progress", phase: "generate", processed: genProcessed, total, nip, nama, status: "success", fileName: existing.fileName, resumed: true })
+            return
+          }
 
           try {
             const docxBuffer = renderDocx(templateBuffer, data)
@@ -325,9 +423,10 @@ export async function POST(req: Request) {
             }
 
             await writeFile(path.join(batchDir, fileName), finalPdf)
+            manifest[nip] = { fileName, nama, documentNo: data.nomor_surat, verifyToken, phase: "generated" }
             docMetas.push({
               no: rowIndex + 1, nip, nama, fileName, verifyToken,
-              documentNo: data.nomor_surat, title: `${JENIS_SPMT} - ${nama}`, ok: true,
+              documentNo: data.nomor_surat, title: `${JENIS_SPMT} - ${nama}`, ok: true, alreadySigned: false,
             })
             genProcessed++
             send({ type: "progress", phase: "generate", processed: genProcessed, total, nip, nama, status: "success", fileName })
@@ -336,7 +435,7 @@ export async function POST(req: Request) {
             console.error(`[SPMT GENERATE FAILED] NIP: ${nip} | Nama: ${nama} | Error: ${err?.message}`)
             docMetas.push({
               no: rowIndex + 1, nip, nama, fileName, verifyToken: null,
-              documentNo: nip, title: `${JENIS_SPMT} - ${nama}`, ok: false, error: err?.message || "Gagal generate",
+              documentNo: nip, title: `${JENIS_SPMT} - ${nama}`, ok: false, alreadySigned: false, error: err?.message || "Gagal generate",
             })
             genProcessed++
             send({ type: "progress", phase: "generate", processed: genProcessed, total, nip, nama, status: "error", error: err?.message || "Gagal" })
@@ -346,15 +445,24 @@ export async function POST(req: Request) {
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
           const batchRows = rows.slice(i, i + BATCH_SIZE)
           await Promise.all(batchRows.map((row, idx) => generateRow(row, i + idx)))
+          writeManifest(batchDir, manifest) // checkpoint tiap gelombang — batas kerugian kalau putus cuma 1 gelombang (≤6 dok)
         }
 
         if (useTte) {
           const okDocs = docMetas.filter(d => d.ok)
+          const alreadySignedDocs = okDocs.filter(d => d.alreadySigned)
+          const docsToSign = okDocs.filter(d => !d.alreadySigned)
           let signProcessed = 0
           send({ type: "status", message: "Menandatangani dokumen via BSrE..." })
 
-          for (let i = 0; i < okDocs.length; i += chunkSize) {
-            const chunk = okDocs.slice(i, i + chunkSize)
+          // Dokumen yang di attempt sebelumnya sudah kelar TTE — langsung dilaporkan sukses, gak ditandatangani ulang.
+          for (const d of alreadySignedDocs) {
+            signProcessed++
+            send({ type: "progress", phase: "sign", processed: signProcessed, total: okDocs.length, nip: d.nip, nama: d.nama, status: "success", fileName: d.fileName, resumed: true })
+          }
+
+          for (let i = 0; i < docsToSign.length; i += chunkSize) {
+            const chunk = docsToSign.slice(i, i + chunkSize)
             const files = chunk.map(d => fs.readFileSync(path.join(batchDir, d.fileName)).toString("base64"))
 
             const result = await signPdfV2({
@@ -374,6 +482,7 @@ export async function POST(req: Request) {
                   d.error = "TTE: file hasil tidak ditemukan pada response BSrE"
                 } else {
                   fs.writeFileSync(path.join(batchDir, d.fileName), Buffer.from(signedB64, "base64"))
+                  if (manifest[d.nip]) manifest[d.nip].phase = "signed"
                 }
               }
               signProcessed++
@@ -382,6 +491,8 @@ export async function POST(req: Request) {
                 nip: d.nip, nama: d.nama, status: d.ok ? "success" : "error", fileName: d.ok ? d.fileName : undefined, error: d.error,
               })
             })
+
+            writeManifest(batchDir, manifest) // checkpoint tiap chunk TTE
           }
         }
 
@@ -413,7 +524,7 @@ export async function POST(req: Request) {
 
         if (docRecords.length > 0) {
           try {
-            await prisma.document.createMany({ data: docRecords })
+            await prisma.document.createMany({ data: docRecords, skipDuplicates: true })
           } catch (docErr: any) {
             console.error("[DOCUMENT CREATE ERROR]", docErr?.message)
           }
@@ -474,25 +585,24 @@ export async function POST(req: Request) {
           console.error(`[MINIO UPLOAD ERROR] Batch: ${batchId} | ${minioErr?.message}`)
         }
 
+        // Baru hapus folder batch (+ manifest) SETELAH zip & upload sukses — sebelum titik ini,
+        // kalau proses mati di tengah jalan, folder tetap ada dan batch masih bisa di-resume.
         fs.rmSync(batchDir, { recursive: true, force: true })
 
         try {
-          const batchRecord = await prisma.signBatch.create({
+          await prisma.signBatch.update({
+            where: { id: batchRecordId },
             data: {
-              batchCode: batchId.slice(0, 8).toUpperCase(),
-              jenisSk: JENIS_SPMT,
-              total,
-              successCount,
-              errorCount,
+              total, successCount, errorCount,
               zipFileName: zipMinioPath || zipFileName,
               reportFileName: reportMinioPath || reportFileName,
-              signedBy: session.user.email!,
+              status: "done",
             },
           })
 
           await prisma.signLog.createMany({
             data: allResults.map(r => ({
-              batchId: batchRecord.id,
+              batchId: batchRecordId,
               jenisSk: JENIS_SPMT,
               namaFile: r.fileName ?? null,
               nip: r.nip,
@@ -503,7 +613,7 @@ export async function POST(req: Request) {
             })),
           })
 
-          console.log(`[SIGN BATCH] ${batchRecord.batchCode} | ${JENIS_SPMT} | Total: ${total} | Berhasil: ${successCount} | Gagal: ${errorCount} | By: ${session.user.email}`)
+          console.log(`[SIGN BATCH] ${batchId} | ${JENIS_SPMT} | Total: ${total} | Berhasil: ${successCount} | Gagal: ${errorCount} | By: ${session.user.email}`)
         } catch (dbErr: any) {
           console.error("[DB LOG ERROR]", dbErr?.message)
         }
@@ -518,6 +628,8 @@ export async function POST(req: Request) {
         })
 
       } catch (err: any) {
+        // Sengaja TIDAK menghapus batchDir/manifest di sini — biar bisa di-resume atau diunduh
+        // sebagian lewat /api/bulk-sign-spmt/partial/[batchId].
         console.error("[SPMT BULK SIGN ERROR]", err?.message)
         send({ type: "error", error: err?.message || "Gagal" })
       } finally {

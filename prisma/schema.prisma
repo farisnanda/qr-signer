@@ -112,12 +112,17 @@ model SignBatch {
   errorCount     Int
   zipFileName    String?
   reportFileName String?
+  /// "processing" = masih jalan/terputus di tengah (folder batch & manifest resume masih ada di disk,
+  /// bisa dilanjutkan lewat mode=resume). "done" = selesai & sudah di-zip+upload (folder sudah dihapus).
+  /// Default "done" biar baris lama (sebelum kolom ini ada) tetap kebaca sebagai selesai.
+  status         String    @default("done")
   signedBy       String
   createdAt      DateTime  @default(now())
   logs           SignLog[]
 
   @@index([signedBy, createdAt])
   @@index([jenisSk, createdAt])
+  @@index([status, createdAt])
 }
 
 model SignLog {
