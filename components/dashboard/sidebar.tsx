@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { LayoutDashboard, PenSquare, Users, Shield, History, Upload, FileText, UserCheck, KeyRound, FileEdit, Wrench, FileType, type LucideIcon } from "lucide-react"
+import { LayoutDashboard, PenSquare, Users, Shield, History, Upload, FileText, UserCheck, KeyRound, FileEdit, Wrench, FileType, ClipboardCheck, type LucideIcon } from "lucide-react"
 
 type Props = { serverSession?: any }
 
@@ -32,6 +32,7 @@ export function Sidebar({ serverSession }: Props) {
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard, show: true, match: (p) => p === "/admin" },
     { href: "/admin/bulk-sign", label: "Bulk Sign", icon: Upload, show: isSekretariat, match: (p) => p.startsWith("/admin/bulk-sign") && !p.startsWith("/admin/bulk-sign-sk") },
     { href: "/admin/bulk-sign-sk", label: "Bulk Sign SK", icon: PenSquare, show: isSekretariat },
+    { href: "/admin/bulk-sign-spmt", label: "SPMT PPPK", icon: ClipboardCheck, show: isSekretariat },
     { href: "/admin/berita-acara-sumpah", label: "Berita Acara Sumpah", icon: FileText, show: true },
     { href: "/admin/peserta", label: "Peserta", icon: UserCheck, show: isSekretariat },
     { href: "/admin/sesi", label: "Sesi & PIN", icon: KeyRound, show: isSekretariat },
