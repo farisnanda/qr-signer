@@ -67,6 +67,15 @@ export default function BulkSignSpmtPage() {
   const [interrupted, setInterrupted] = useState(false)
   // Set sebelum modal 2FA/TTE dibuka, biar modal tahu ini submit baru atau lanjutan (resume).
   const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
+  // Tombol Batal saat produksi jalan — abort fetch-nya, server juga berhenti kerja (dicek di route.ts).
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const [cancelling, setCancelling] = useState(false)
+
+  function handleBatalkanProses() {
+    if (!abortControllerRef.current) return
+    setCancelling(true)
+    abortControllerRef.current.abort()
+  }
 
   useEffect(() => {
     setCheckedOk(false)
@@ -225,6 +234,7 @@ export default function BulkSignSpmtPage() {
 
   async function handleSubmit(resumeId?: string) {
     setLoading(true)
+    setCancelling(false)
     setError("")
     setInterrupted(false)
     if (!resumeId) {
@@ -236,6 +246,9 @@ export default function BulkSignSpmtPage() {
     }
     setPhaseLabel("")
     setProgress(resumeId ? "Menyambung ke batch sebelumnya..." : "Menghubungkan ke server...")
+
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
 
     try {
       const formData = buildBaseFormData()
@@ -250,6 +263,7 @@ export default function BulkSignSpmtPage() {
       }
 
       const res = await fetch("/qr-signer/api/bulk-sign-spmt", {
+        signal: abortController.signal,
         method: "POST",
         body: formData,
       })
@@ -339,14 +353,21 @@ export default function BulkSignSpmtPage() {
           } catch {}
         }
       }
-    } catch {
-      // Koneksi putus di tengah jalan (bukan error dari server) — dokumen yang sudah jadi
-      // tetap tersimpan di server (folder batch belum dihapus), bisa didownload/dilanjutkan.
-      setError("Koneksi terputus di tengah proses")
+    } catch (err: any) {
+      // Dokumen yang sudah jadi tetap tersimpan di server (folder batch belum dihapus),
+      // bisa didownload parsial atau dilanjutkan — baik ini dibatalkan sendiri (tombol Batal)
+      // maupun koneksi putus beneran.
+      if (err?.name === "AbortError") {
+        setError("Proses dibatalkan")
+      } else {
+        setError("Koneksi terputus di tengah proses")
+      }
       setInterrupted(true)
     } finally {
       setLoading(false)
+      setCancelling(false)
       setProgress("")
+      abortControllerRef.current = null
     }
   }
 
@@ -591,6 +612,21 @@ export default function BulkSignSpmtPage() {
                 </div>
                 <p className="text-center text-xs text-slate-400">
                   Proses ini mungkin memakan waktu beberapa menit
+                </p>
+                <button
+                  onClick={handleBatalkanProses}
+                  disabled={cancelling}
+                  className="w-full rounded-xl border-2 border-red-300 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {cancelling ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-red-600/30 border-t-red-600" />
+                      Membatalkan...
+                    </span>
+                  ) : "✕ Batal"}
+                </button>
+                <p className="text-center text-xs text-slate-400">
+                  Dokumen yang sudah jadi tidak hilang — bisa didownload atau dilanjutkan nanti
                 </p>
               </div>
             )}

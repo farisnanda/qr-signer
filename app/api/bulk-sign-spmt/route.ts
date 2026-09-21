@@ -201,6 +201,11 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
+  // Dipakai buat tombol "Batal" di UI — kalau client abort (fetch AbortController), request.signal
+  // ke-trigger. Dicek berkala di loop generate/TTE biar server ikut BENERAN berhenti kerja, bukan
+  // cuma koneksinya putus doang sementara server lanjut proses di background.
+  const signal = req.signal
+
   const formData = await req.formData()
   const mode = ((formData.get("mode") as string) || "full") as "check" | "full" | "resume"
   const excelFile = formData.get("excel") as File
@@ -442,11 +447,22 @@ export async function POST(req: Request) {
           }
         }
 
+        let cancelled = false
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
           const batchRows = rows.slice(i, i + BATCH_SIZE)
           await Promise.all(batchRows.map((row, idx) => generateRow(row, i + idx)))
           writeManifest(batchDir, manifest) // checkpoint tiap gelombang — batas kerugian kalau putus cuma 1 gelombang (≤6 dok)
+          if (signal.aborted) {
+            cancelled = true
+            console.log(`[SPMT CANCELLED] batchId=${batchId} saat fase generate, ${genProcessed}/${total} selesai`)
+            break
+          }
         }
+
+        // Dibatalkan user (tombol Batal) — berhenti di sini, JANGAN finalize (jangan zip/upload/hapus
+        // folder). Folder+manifest tetap ada di server, batch tetap status "processing" -> bisa
+        // di-resume atau didownload parsial kapan saja, sama seperti kalau koneksi putus sendiri.
+        if (cancelled) return
 
         if (useTte) {
           const okDocs = docMetas.filter(d => d.ok)
@@ -493,8 +509,16 @@ export async function POST(req: Request) {
             })
 
             writeManifest(batchDir, manifest) // checkpoint tiap chunk TTE
+
+            if (signal.aborted) {
+              cancelled = true
+              console.log(`[SPMT CANCELLED] batchId=${batchId} saat fase TTE, ${signProcessed}/${okDocs.length} selesai`)
+              break
+            }
           }
         }
+
+        if (cancelled) return
 
         const verifyDocs = docMetas.filter(d => d.ok && d.verifyToken)
         const docRecords: Array<{
